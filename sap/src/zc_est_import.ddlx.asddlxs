@@ -1,0 +1,56 @@
+@Metadata.layer: #CORE
+@UI.headerInfo: { typeName: 'Data Import', typeNamePlural: 'Data Imports',
+                  title: { type: #STANDARD, value: 'FileName' },
+                  description: { type: #STANDARD, value: 'DataKind' } }
+@UI.presentationVariant: [ { sortOrder: [ { by: 'CreatedAt', direction: #DESC } ] } ]
+annotate view ZC_EST_IMPORT with
+{
+  @UI.facet: [ { id: 'Import', label: 'Import', purpose: #STANDARD, position: 10, type: #IDENTIFICATION_REFERENCE } ]
+  @UI.hidden: true
+  ImportUuid;
+
+  @EndUserText.label: 'Kind (BLOCKS, CREWS, ATTENDANCE, ORDERS, UPKEEP, MM)'
+  @UI.lineItem: [ { position: 10 },
+                  { type: #FOR_ACTION, dataAction: 'Load', label: 'Load' } ]
+  @UI.identification: [ { position: 10 },
+                        { type: #FOR_ACTION, dataAction: 'Load', label: 'Load' } ]
+  DataKind;
+
+  @EndUserText.label: 'Estate'
+  @UI.lineItem: [ { position: 20 } ]
+  @UI.identification: [ { position: 20 } ]
+  Estate;
+
+  @EndUserText.label: 'File'
+  @UI.lineItem: [ { position: 30 } ]
+  @UI.identification: [ { position: 30 } ]
+  Attachment;
+
+  @UI.hidden: true
+  FileName;
+
+  @UI.hidden: true
+  MimeType;
+
+  @EndUserText.label: 'Status'
+  @UI.lineItem: [ { position: 40, criticality: 'StatusCriticality' } ]
+  @UI.identification: [ { position: 40, criticality: 'StatusCriticality' } ]
+  Status;
+
+  @UI.hidden: true
+  StatusCriticality;
+
+  @EndUserText.label: 'Rows Loaded'
+  @UI.lineItem: [ { position: 50 } ]
+  @UI.identification: [ { position: 50 } ]
+  RowsLoaded;
+
+  @EndUserText.label: 'Message'
+  @UI.lineItem: [ { position: 60 } ]
+  @UI.identification: [ { position: 60 } ]
+  Message;
+
+  @EndUserText.label: 'Uploaded At'
+  @UI.lineItem: [ { position: 70 } ]
+  CreatedAt;
+}

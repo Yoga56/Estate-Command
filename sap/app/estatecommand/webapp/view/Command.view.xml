@@ -1,0 +1,201 @@
+<mvc:View controllerName="zestate.command.controller.Command"
+          xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:core="sap.ui.core"
+          xmlns:l="sap.ui.layout" xmlns:f="sap.ui.layout.form" xmlns:est="zestate.command.control"
+          xmlns:app="http://schemas.sap.com/sapui5/extension/sap.ui.core.CustomData/1"
+          height="100%">
+  <Page id="page" title="Estate Command" class="sapUiResponsiveContentPadding">
+    <customHeader>
+      <Toolbar>
+        <Title text="Estate Command" level="H2"/>
+        <ToolbarSpacer/>
+        <Select id="estate" width="14rem" change=".onEstateChange"
+                items="{ path: 'view>/estates', templateShareable: false }" selectedKey="{view>/estate}">
+          <core:Item key="{view>Estate}" text="{view>Estate} {view>EstateName}"/>
+        </Select>
+        <SegmentedButton selectedKey="{view>/operation}" selectionChange=".onOperationChange">
+          <items>
+            <SegmentedButtonItem key="harvest" text="Harvest"/>
+            <SegmentedButtonItem key="prune" text="Prune"/>
+            <SegmentedButtonItem key="weed" text="Weed"/>
+            <SegmentedButtonItem key="spray" text="Spray"/>
+          </items>
+        </SegmentedButton>
+        <Select width="22rem" change=".onPlanChange" forceSelection="false"
+                items="{ path: 'view>/plans', templateShareable: false }" selectedKey="{view>/planUuid}">
+          <core:Item key="{view>PlanUuid}" text="{view>PlanDate} [{view>Status}] {view>Headline}"/>
+        </Select>
+        <Button text="Plan Tomorrow" type="Emphasized" icon="sap-icon://create" press=".onGenerate"/>
+      </Toolbar>
+    </customHeader>
+
+    <l:Splitter height="100%">
+      <VBox class="sapUiSmallMargin">
+        <layoutData><l:SplitterLayoutData size="55%"/></layoutData>
+        <ObjectStatus text="{view>/legend}" state="Information" class="sapUiTinyMarginBottom"/>
+        <est:BlockMap id="map" blocks="{view>/blocks}" lines="{view>/plan/_Lines}" select=".onBlockSelect"/>
+      </VBox>
+
+      <IconTabBar id="tabs" expandable="false" stretchContentHeight="true" class="sapUiNoContentPadding">
+        <layoutData><l:SplitterLayoutData size="auto"/></layoutData>
+        <items>
+          <IconTabFilter key="plan" text="Plan" icon="sap-icon://activity-items">
+            <VBox visible="{= !!${view>/plan} }">
+              <Title text="{view>/plan/Headline}" wrapping="true" level="H3"/>
+              <HBox wrap="Wrap" class="sapUiTinyMarginTopBottom">
+                <ObjectStatus title="Status" text="{view>/plan/Status}" state="{= ${view>/plan/StatusCriticality} === 3 ? 'Success' : ${view>/plan/StatusCriticality} === 1 ? 'Error' : 'Warning' }" class="sapUiSmallMarginEnd"/>
+                <ObjectStatus title="Plan date" text="{view>/plan/PlanDate}" class="sapUiSmallMarginEnd"/>
+                <ObjectStatus title="Figures checked" text="{view>/plan/AuditChecked}"
+                              state="{= ${view>/plan/AuditUnverified} ? 'Warning' : 'Success' }" class="sapUiSmallMarginEnd"/>
+                <ObjectStatus title="Model" text="{view>/plan/ModelId}"/>
+              </HBox>
+              <MessageStrip visible="{= !!${view>/plan/AuditUnverified} }" type="Warning" showIcon="true"
+                            text="Figures in the words that appear nowhere in the data: {view>/plan/AuditUnverified}"/>
+              <MessageStrip visible="{= !!${view>/plan/ErrorText} }" type="Error" showIcon="true" text="{view>/plan/ErrorText}"/>
+              <MessageStrip visible="{= !!${view>/plan/StopsWork} }" type="Warning" showIcon="true" text="{view>/plan/StopReason}"/>
+              <Text text="{view>/plan/Summary}" class="sapUiSmallMarginTop"/>
+              <Title text="Crews" level="H4" class="sapUiMediumMarginTop"/>
+              <List items="{view>/crews}" noDataText="Nothing assigned">
+                <CustomListItem>
+                  <HBox alignItems="Center" class="sapUiTinyMargin">
+                    <core:Icon src="sap-icon://color-fill" color="{view>color}" class="sapUiTinyMarginEnd"/>
+                    <VBox>
+                      <Text text="{view>crew}: blocks {view>range}"/>
+                      <Text text="{view>present} expected, {view>blocks} blocks, {view>manDays} man-days" class="estMuted"/>
+                    </VBox>
+                  </HBox>
+                </CustomListItem>
+              </List>
+            </VBox>
+          </IconTabFilter>
+
+          <IconTabFilter key="why" text="Why" icon="sap-icon://hint">
+            <VBox visible="{= !!${view>/plan} }">
+              <Text text="{view>/plan/WhyText}" class="sapUiSmallMarginBottom"/>
+              <f:SimpleForm editable="false" layout="ResponsiveGridLayout" labelSpanL="5" labelSpanM="5">
+                <Label text="Blocks due / assigned"/><Text text="{view>/plan/BlocksDue} / {view>/plan/BlocksAssigned}"/>
+                <Label text="Man-days available / needed"/><Text text="{view>/plan/CapacityMd} / {view>/plan/ManDaysDue}"/>
+                <Label text="Deferral value recovered (IDR)"/><Text text="{view>/plan/ValueRecovered} of {view>/plan/DeferralDue} due"/>
+                <Label text="Relaxed upper bound (IDR)"/><Text text="{view>/plan/UpperBound} (gap {view>/plan/GapPercent}%)"/>
+                <Label text="Contiguity bonus / what it cost"/><Text text="{view>/plan/ContiguityPercent}% / {view>/plan/ContiguityCost} IDR"/>
+                <Label text="Swap improvements"/><Text text="{view>/plan/Swaps}"/>
+                <Label text="Rain"/><Text text="{view>/plan/RainMm} mm, {view>/plan/RainProbability}% ({view>/plan/WeatherSource})"/>
+                <Label text="Changes set on the plan"/><Text text="{view>/plan/Overrides}"/>
+              </f:SimpleForm>
+              <Table items="{view>/plan/_Lines}" growing="true" growingThreshold="40">
+                <columns>
+                  <Column><Text text="Crew"/></Column>
+                  <Column><Text text="Block"/></Column>
+                  <Column hAlign="End"><Text text="Urgency"/></Column>
+                  <Column hAlign="End"><Text text="Man-days"/></Column>
+                  <Column hAlign="End"><Text text="Deferral"/></Column>
+                  <Column hAlign="End"><Text text="Travel km"/></Column>
+                  <Column><Text text="Note"/></Column>
+                </columns>
+                <items>
+                  <ColumnListItem highlight="{= ${view>IsAssigned} ? 'None' : 'Error' }">
+                    <Text text="{= ${view>IsAssigned} ? ${view>CrewCode} + ' #' + ${view>SequenceNo} : 'not reached' }"/>
+                    <Text text="{view>BlockLabel} {view>Activity}"/>
+                    <Text text="{view>Urgency}"/>
+                    <Text text="{view>ManDays}"/>
+                    <Text text="{view>Deferral}"/>
+                    <Text text="{view>TravelKm}"/>
+                    <Text text="{view>LineNote}"/>
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </VBox>
+          </IconTabFilter>
+
+          <IconTabFilter key="decide" text="Decide" icon="sap-icon://approvals">
+            <VBox visible="{= !!${view>/plan} }">
+              <f:SimpleForm editable="true" layout="ResponsiveGridLayout" title="Decision">
+                <Label text="Note"/><Input value="{view>/decision/note}"/>
+                <Label text="Look again on (deferral)"/><DatePicker value="{view>/decision/dueDate}" valueFormat="yyyy-MM-dd"/>
+                <Label text="Expected effect"/><Input value="{view>/decision/expected}"/>
+              </f:SimpleForm>
+              <HBox class="sapUiSmallMarginBegin">
+                <Button text="Accept" type="Accept" press=".onDecide" app:decision="Accept" class="sapUiTinyMarginEnd"/>
+                <Button text="Reject" type="Reject" press=".onDecide" app:decision="Reject" class="sapUiTinyMarginEnd"/>
+                <Button text="Defer" press=".onDecide" app:decision="Defer" class="sapUiTinyMarginEnd"/>
+                <Button text="Draft Work Document" icon="sap-icon://document-text" press=".onDraft"/>
+              </HBox>
+              <f:SimpleForm editable="true" layout="ResponsiveGridLayout" title="Replan with a changed constraint">
+                <Label text="Crew out for the day"/><Input value="{view>/replan/CrewOut}"/>
+                <Label text="Crew / headcount"/><Input value="{view>/replan/CrewCode}"/><StepInput value="{view>/replan/CrewPresent}" min="0"/>
+                <Label text="Rain on the day, mm"/><Input value="{view>/replan/RainMm}" placeholder="blank = forecast"/>
+                <Label text="Block held back"/><Input value="{view>/replan/BlockHeld}"/>
+                <Label text="Contiguity bonus %"/><Input value="{view>/replan/ContiguityPct}" placeholder="blank = register"/>
+                <Label text="Clear earlier changes"/><CheckBox selected="{view>/replan/ClearChanges}"/>
+              </f:SimpleForm>
+              <Button text="Replan" icon="sap-icon://synchronize" press=".onReplan" class="sapUiSmallMarginBegin"/>
+              <Title text="Decision log" level="H4" class="sapUiMediumMarginTop"/>
+              <Text text="{view>/plan/DecidedBy} {view>/plan/DecidedAt} {view>/plan/DecisionNote} {view>/plan/DueDate} {view>/plan/ExpectedEffect}"/>
+              <Text text="{view>/plan/ArtifactText}" renderWhitespace="true" class="sapUiSmallMarginTop estDocument"/>
+            </VBox>
+          </IconTabFilter>
+
+          <IconTabFilter key="ask" text="Ask" icon="sap-icon://discussion">
+            <VBox visible="{= !!${view>/plan} }">
+              <TextArea value="{view>/question}" width="100%" rows="3"
+                        placeholder="G1-01 is four men short tomorrow - which blocks wait?"/>
+              <Button text="Ask" type="Emphasized" press=".onAsk"/>
+              <Text text="{view>/answer/Answer}" class="sapUiSmallMarginTop"/>
+              <MessageStrip visible="{= !!${view>/answer/AuditUnverified} }" type="Warning" showIcon="true"
+                            text="Not found in the data: {view>/answer/AuditUnverified}"/>
+              <ObjectStatus visible="{= !!${view>/answer} }" text="{view>/answer/AuditChecked} figures checked, {view>/answer/ModelId}"/>
+            </VBox>
+          </IconTabFilter>
+
+          <IconTabFilter key="handover" text="Handover" icon="sap-icon://shift-change">
+            <VBox>
+              <Button text="Write Shift Handover" press=".onHandover"/>
+              <Title text="{view>/handover/HandoverHeadline}" wrapping="true" class="sapUiSmallMarginTop"/>
+              <Label text="Decided"/><Text text="{view>/handover/Decided}" renderWhitespace="true"/>
+              <Label text="Open"/><Text text="{view>/handover/OpenPositions}" renderWhitespace="true"/>
+              <Label text="Watch"/><Text text="{view>/handover/Watchlist}" renderWhitespace="true"/>
+              <Text text="{view>/handover/HandoverNote}" class="sapUiSmallMarginTop"/>
+              <Label text="Outcomes of this plan, read back against the ledger" class="sapUiMediumMarginTop"/>
+              <Button text="Did It Work?" press=".onOutcomes"/>
+              <Table items="{view>/outcomes}">
+                <columns>
+                  <Column><Text text="Block"/></Column>
+                  <Column><Text text="Crew"/></Column>
+                  <Column hAlign="End"><Text text="Planned"/></Column>
+                  <Column hAlign="End"><Text text="Actual"/></Column>
+                  <Column hAlign="End"><Text text="%"/></Column>
+                  <Column><Text text="Status"/></Column>
+                </columns>
+                <items>
+                  <ColumnListItem>
+                    <Text text="{view>BlockLabel}"/>
+                    <Text text="{view>CrewCode}"/>
+                    <Text text="{view>PlannedQty}"/>
+                    <Text text="{view>ActualQty}"/>
+                    <Text text="{view>AdherencePct}"/>
+                    <Text text="{view>OutcomeStatus}"/>
+                  </ColumnListItem>
+                </items>
+              </Table>
+            </VBox>
+          </IconTabFilter>
+
+          <IconTabFilter key="stores" text="Stores" icon="sap-icon://product">
+            <VBox>
+              <Button text="Read the Store" press=".onStores"/>
+              <List items="{view>/stores}" noDataText="Press Read the Store">
+                <CustomListItem>
+                  <VBox class="sapUiTinyMargin">
+                    <ObjectStatus title="{view>MaterialName}" text="{view>Headline}"
+                                  state="{= ${view>StatusCriticality} === 1 ? 'Error' : ${view>StatusCriticality} === 2 ? 'Warning' : 'Success' }"/>
+                    <Text text="{view>LeadSentence}" class="estMuted"/>
+                    <Text text="{view>BufferSentence}" class="estMuted"/>
+                  </VBox>
+                </CustomListItem>
+              </List>
+            </VBox>
+          </IconTabFilter>
+        </items>
+      </IconTabBar>
+    </l:Splitter>
+  </Page>
+</mvc:View>

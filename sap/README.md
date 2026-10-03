@@ -1,0 +1,185 @@
+# Estate Command on SAP
+
+The SAP edition of Estate Command: tomorrow's crew assignment, the assumption register, the
+decision log, the AI layer and the stores answer, running **inside** SAP S/4HANA Cloud Public
+Edition or the SAP BTP ABAP environment as ABAP Cloud (RAP, CDS, OData V4, Fiori).
+
+It follows the patterns of the CFO cockpit in `ZDEMO_FSCM_AI`: the same provider seam
+(`ZIF_*_AI_PROVIDER`, factory with fallback order, Bedrock and Gemini over communication
+arrangements), the same RAP shape (a managed BO created by a static action, the figures computed
+in ABAP, the model only wording them), application jobs, and a freestyle UI5 app over the
+service.
+
+The rule from the Python app holds here too: **the server computes, the model writes**, and the
+guardrail is checked, not trusted. Every number and block label in generated text is looked for in
+the evidence it was written from (`ZCL_EST_AUDIT`), with one self-correction pass; the plan still
+carries its figures when every provider fails (status `F`).
+
+---
+
+## What runs where
+
+| Python (this repo) | SAP edition (`sap/src`, package `ZESTATE_CMD`) |
+|---|---|
+| `gis/ops.py` `_state()` - blocks, crews, attendance, ledger | `ZCL_EST_DATA` over tables `ZEST_BLOCK`, `ZEST_CREW`, `ZEST_ATTEND`, `ZEST_WORKORD`, `ZEST_UPKEEP` |
+| `gis/ops.py` `demand()` (harvest, prune, weed, spray) | `ZCL_EST_DEMAND` |
+| `gis/ops.py` `_expected_present()` | `ZCL_EST_DATA->EXPECTED_PRESENT` |
+| `gis/models/scheduler.py` - greedy, swap pass, upper bound, contiguity cost | `ZCL_EST_SCHEDULER`, geometry in `ZCL_EST_GEO` |
+| `gis/assumptions.py` + `decisions.db` | `ZCL_EST_ASSUMPTIONS`, table `ZEST_ASSUMP`, RAP BO `ZR_EST_ASSUMP` |
+| `gis/decisions.py` decision log, drafted artifacts | RAP BO `ZR_EST_PLAN`: Accept / Reject / Defer, `DraftArtifact`, `Outcomes` |
+| `gis/reasoning.py` `audit_figures` | `ZCL_EST_AUDIT` |
+| `gis/briefings.py` handover, artifact instructions | `ZCL_EST_PLAN_BUILDER` (`HANDOVER`, `DRAFT_ARTIFACT`) |
+| `/gis/ask` | action `Ask` on a plan, audited |
+| `llm_client.py` (Groq / Bedrock) | `ZIF_EST_AI_PROVIDER`, `ZCL_EST_AI_FACTORY`, `ZCL_EST_AI_BEDROCK`, `ZCL_EST_AI_GEMINI` |
+| Open-Meteo rainfall | `ZCL_EST_WEATHER` (communication scenario `ZEST_WEATHER`) |
+| `gis/stores.py`, `models/leadtime.py`, `consumption.py`, `safety_stock.py`, `mm.py` | `ZCL_EST_STORES`, `ZCL_EST_MM_DATA` (released MM views, or `ZEST_MM_MOCK`), custom entity `ZI_EST_STORES` |
+| `gis/data/synthetic/*.csv` | Data Import BO `ZR_EST_IMPORT` + `sap/tools/export_sap_seed.py` |
+| `/command` MapLibre map | UI5 app `sap/app/estatecommand` (SVG block map, CSP-safe) |
+| background warm-up / cron | application job `ZCL_EST_PLAN_JOB` |
+
+What changes in SAP:
+
+- **Stores reads SAP MM itself.** An estate with a plant reads `I_ProductSupplyPlanning`,
+  `I_MaterialStock_2`, `I_PurchaseOrderAPI01` / `I_PurchaseOrderItemAPI01`,
+  `I_MaterialDocumentItem_2`, `I_Supplier` and `I_ProductDescription` - the MB51, ME80FN, MM60
+  and MB52 extracts the Python app asks the client for. Without a plant it reads the sample rows.
+- **The decision log is a business object** with who, when and what was expected, and a
+  feature control that closes a plan once accepted or rejected.
+- **Nothing is posted.** As in the Python app, a plan drafts its work document and stops; no
+  purchase requisition or maintenance order is created.
+
+Not ported in this release (they stay in the Python app): pest and dispatch operations, fire
+triage, the monthly FFB ensemble and conformal bands, the four learned operational models (rain,
+headcount, slippage, crew speeds - the SAP edition uses their fallback methods: forecast or set
+rain, trailing attendance, flat quota and register rates), Sentinel-2 NDRE, the 44-tool copilot
+and the text-to-SQL surfaces.
+
+---
+
+## Objects
+
+| Kind | Objects |
+|---|---|
+| Tables | `ZEST_AI_PROV`, `ZEST_ESTATE`, `ZEST_BLOCK`, `ZEST_CREW`, `ZEST_ATTEND`, `ZEST_WORKORD`, `ZEST_UPKEEP`, `ZEST_ASSUMP`, `ZEST_PLAN`, `ZEST_PLAN_L`, `ZEST_IMPORT`, `ZEST_MM_MOCK` |
+| RAP BOs | `ZR_EST_PLAN` (+ `_L`), `ZR_EST_ASSUMP`, `ZR_EST_ESTATE`, `ZR_EST_IMPORT`; projections `ZC_*`; behavior pools `ZBP_R_EST_*` |
+| Read-only | `ZI_EST_BLOCK`, custom entity `ZI_EST_STORES` (`ZCL_EST_STORES_QUERY`), `ZI_EST_AI_PROV_VH` |
+| Action parameters | `ZA_EST_GEN_PLAN`, `ZA_EST_REPLAN`, `ZA_EST_PROVIDER`, `ZA_EST_DECISION`, `ZA_EST_QUESTION`, `ZA_EST_ANSWER`, `ZA_EST_ESTATE_P`, `ZA_EST_HANDOVER`, `ZA_EST_OUTCOME` |
+| Service | definition and OData V4 UI binding `ZUI_EST_CMD_O4` |
+| Classes | see the table above; `ZCL_EST_SEED` and `ZCL_EST_AI_TEST` are run with F9 |
+
+The XML beside each source is generated: `python sap/tools/abapgit_meta.py`.
+
+---
+
+## Deploy
+
+### 1. Pull and activate (ADT)
+
+1. Create package `ZESTATE_CMD` (software component of your choice).
+2. *abapGit Repositories* view → link this repository to the package, branch of your choice →
+   **Pull**. `.abapgit.xml` at the root points abapGit at `/sap/src/`; the Python app is ignored.
+3. Activate all (Ctrl+Shift+F3). If mass activation complains, in this order: tables →
+   `ZR_*`, `ZI_*`, `ZA_*` views and `ZI_EST_STORES` → `ZCX_EST_AI`, `ZIF_EST_AI_PROVIDER`,
+   `ZCL_EST_AI_*` → `ZCL_EST_GEO`, `ZCL_EST_ASSUMPTIONS`, `ZCL_EST_DATA`, `ZCL_EST_WEATHER`,
+   `ZCL_EST_DEMAND`, `ZCL_EST_SCHEDULER`, `ZCL_EST_AUDIT`, `ZCL_EST_PLAN_BUILDER`,
+   `ZCL_EST_IMPORT`, `ZCL_EST_MM_DATA`, `ZCL_EST_STORES`, `ZCL_EST_STORES_QUERY` → `ZC_*` views →
+   behavior definitions and `ZBP_*` → metadata extensions → `ZUI_EST_CMD_O4` → the remaining classes.
+4. Publish service binding `ZUI_EST_CMD_O4`.
+
+### 2. Objects to create by hand in ADT
+
+These have no hand-writable abapGit format.
+
+| Object | Name | Settings |
+|---|---|---|
+| Outbound service (HTTP) | `ZEST_AI_BEDROCK_REST` | Default path prefix empty |
+| Outbound service (HTTP) | `ZEST_AI_GEMINI_REST` | Default path prefix empty |
+| Outbound service (HTTP) | `ZEST_WEATHER_REST` | Default path prefix empty |
+| Communication scenario | `ZEST_AI_BEDROCK` | Outbound `ZEST_AI_BEDROCK_REST`; property `API_KEY`; auth None |
+| Communication scenario | `ZEST_AI_GEMINI` | Outbound `ZEST_AI_GEMINI_REST`; property `API_KEY`; auth None |
+| Communication scenario | `ZEST_WEATHER` | Outbound `ZEST_WEATHER_REST`; auth None |
+| Application job catalog entry | `ZEST_PLAN_JOB` | Class `ZCL_EST_PLAN_JOB` |
+| Application job template | `ZEST_PLAN_JOB_T` | Catalog entry above |
+| IAM app (external, UI5) | `ZEST_COMMAND_EXT` | Service `ZUI_EST_CMD_O4` (OData V4), UI5 app `ZEST_COMMAND` |
+| Business catalog | `ZEST_COMMAND_BC` | App above; assign to a business role |
+
+Publish the three scenarios locally.
+
+### 3. Communication arrangements (Fiori launchpad, administrator)
+
+| | Bedrock | Gemini | Weather |
+|---|---|---|---|
+| Communication system host | `bedrock-runtime.us-east-1.amazonaws.com` | `generativelanguage.googleapis.com` | `api.open-meteo.com` |
+| Port | 443 | 443 | 443 |
+| Outbound user | authentication *None* | authentication *None* | authentication *None* |
+| Property `API_KEY` | Bedrock API key | Gemini API key | - |
+
+The weather arrangement is optional: without it the plan says the rain is unknown and decides
+without it (set rain on a replan to override).
+
+### 4. Configure and check
+
+1. Run `ZCL_EST_SEED` (F9): provider rows, the assumption register, sample estate `SMPL`
+   (40 blocks, 7 crews, 45 days of ledger, upkeep rounds, stores records). Rerunning keeps API keys
+   and changed assumption values; it rebuilds `SMPL` only.
+2. Run `ZCL_EST_AI_TEST` (F9): one call per provider, then a plan per operation for `SMPL`
+   and the stores answer - the whole chain without the UI.
+3. Preview `ZUI_EST_CMD_O4`:
+   - *Plan* → **Plan Tomorrow** (estate `SMPL`, operation `harvest`) → object page: plan note,
+     assignment, why, weather, decision log, work document, AI run and evidence. **Accept**,
+     **Reject**, **Defer**, **Replan**, **Refresh AI Words**, **Draft Work Document**, **Ask**,
+     **Did It Work?**; **Shift Handover** on the list.
+   - *Assumption* → change a value, save: the next plan is priced with it. **Back to Default**.
+   - *Stores* → filter on an estate: what to order, by when, and why.
+   - *Estate* → set the plant (S/4 MM data), coordinates (rain forecast), default provider and
+     the day the data ends.
+4. *Application Jobs* app → schedule template `ZEST_PLAN_JOB_T` daily at 18:00: tomorrow's plans
+   for every estate and operation are waiting in the morning.
+
+### 5. The estate's own data
+
+```bash
+python sap/tools/export_sap_seed.py --estate EC      # writes sap/seed/EC/*.csv (gitignored)
+```
+
+In *DataImport* create one row per file - Kind `BLOCKS`, `CREWS`, `ATTENDANCE`, `ORDERS`
+(harvest and upkeep files separately), `UPKEEP`, `MM` - with estate `EC`, upload the file, then
+**Load**. A file replaces the estate's earlier rows of that kind (`ORDERS` only for the operations
+in the file). The `BLOCKS` load creates the estate; then set *Data Ends On* to `2025-05-23` so
+tomorrow is 2025-05-24, as in the Python app. With the ArcGIS export present the blocks carry
+their polygons; without it they are placed on their road segments and adjacency falls back to
+centroids closer than 600 m.
+
+### 6. UI5 app
+
+```bash
+cd sap/app/estatecommand
+npm install
+# set your system's host in ui5.yaml and ui5-deploy.yaml
+npm start            # local, against the system, sign-in through the browser
+npm run deploy       # BSP application ZEST_COMMAND in package ZESTATE_CMD
+```
+
+The map is drawn as SVG from `ZI_EST_BLOCK` - no external map library, so it runs under the
+launchpad's content security policy.
+
+---
+
+## Check on first activation
+
+These names come from the released-API documentation and could not be activated against a system
+from here:
+
+- `ZCL_EST_MM_DATA->READ_PLANT`: `I_ProductSupplyPlanning` (`ReorderThresholdQuantity`,
+  `SafetyStockQuantity`, `PlannedDeliveryDurationInDays`, `LotSizeRoundingQuantity`, `MRPType`),
+  `I_MaterialStock_2` (`MatlWrhsStkQtyInMatlBaseUnit`, `InventoryStockType`),
+  `I_PurchaseOrderItemAPI01` (`IsCompletelyDelivered`, `PurchasingDocumentDeletionCode`),
+  `I_MaterialDocumentItem_2` (`GoodsMovementType`, `QuantityInBaseUnit`, `PurchaseOrder`,
+  `PurchaseOrderItem`). Only stores on an estate **with a plant** read them.
+- `ZCL_EST_AI_HTTP=>GET_API_KEY`: the shape of `IF_COM_ARRANGEMENT->GET_PROPERTIES( )` (as in
+  `ZDEMO_FSCM_AI`).
+- `cl_abap_random_float` in `ZCL_EST_STORES` (released for ABAP Cloud; seed fixed so the
+  answer is repeatable).
+
+`abaplint` (ABAP Cloud syntax, released API stubs of 2305) passes on every source except its known
+parser gap on multi-entity `MODIFY ENTITIES`, which it reports for `ZDEMO_FSCM_AI` too.

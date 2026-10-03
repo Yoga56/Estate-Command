@@ -1,0 +1,53 @@
+{
+  "_version": "1.60.0",
+  "sap.app": {
+    "id": "zestate.command",
+    "type": "application",
+    "title": "Estate Command",
+    "description": "Tomorrow's crew assignment on the estate map, with the reasoning and the decision log",
+    "applicationVersion": { "version": "0.1.0" },
+    "dataSources": {
+      "mainService": {
+        "uri": "/sap/opu/odata4/sap/zui_est_cmd_o4/srvd/sap/zui_est_cmd_o4/0001/",
+        "type": "OData",
+        "settings": { "odataVersion": "4.0" }
+      }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "EstatePlan-display": {
+          "semanticObject": "EstatePlan",
+          "action": "display",
+          "title": "Estate Command",
+          "signature": { "parameters": {}, "additionalParameters": "allowed" }
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "fullWidth": true,
+    "deviceTypes": { "desktop": true, "tablet": true, "phone": false }
+  },
+  "sap.ui5": {
+    "dependencies": {
+      "minUI5Version": "1.136.0",
+      "libs": { "sap.m": {}, "sap.ui.core": {}, "sap.ui.layout": {}, "sap.f": {} }
+    },
+    "rootView": {
+      "viewName": "zestate.command.view.Command",
+      "type": "XML",
+      "id": "command",
+      "async": true
+    },
+    "models": {
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": { "operationMode": "Server", "autoExpandSelect": false, "earlyRequests": true }
+      }
+    },
+    "resources": { "css": [ { "uri": "css/style.css" } ] },
+    "contentDensities": { "compact": true, "cozy": true }
+  }
+}

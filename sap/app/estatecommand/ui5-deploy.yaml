@@ -1,0 +1,17 @@
+specVersion: "3.1"
+metadata:
+  name: zestate.command
+type: application
+builder:
+  customTasks:
+    - name: deploy-to-abap
+      afterTask: generateCachebusterInfo
+      configuration:
+        target:
+          url: https://my000000.s4hana.cloud.sap
+          authenticationType: reentranceTicket
+        app:
+          name: ZEST_COMMAND
+          description: Estate Command
+          package: ZESTATE_CMD
+          # add "transport: <request>" when the system asks for one

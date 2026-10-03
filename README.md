@@ -23,6 +23,15 @@ feature degrades to without it.
 
 ---
 
+## Inside SAP
+
+`sap/` holds the SAP edition: tomorrow's crew assignment, the assumption register, the decision
+log, the audited AI layer and the stores answer as ABAP Cloud (RAP, CDS, OData V4, UI5) for
+S/4HANA Cloud Public Edition or the BTP ABAP environment, pulled with abapGit into package
+`ZESTATE_CMD`. Stores reads SAP MM directly. See [sap/README.md](sap/README.md).
+
+---
+
 ## 1. The map — a GIS decision layer
 
 `/command` is a full-page MapLibre workspace over the estate's ArcGIS block

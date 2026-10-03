@@ -1,0 +1,57 @@
+managed implementation in class ZBP_R_EST_ASSUMP unique;
+strict ( 2 );
+
+define behavior for ZR_EST_ASSUMP alias Assumption
+persistent table zest_assump
+lock master
+authorization master ( global )
+etag master LocalLastChangedAt
+{
+  // the register is shipped by ZCL_EST_SEED; the estate changes values, never the catalogue
+  field ( readonly )
+   AssumptionKey,
+   AssumptionLabel,
+   DefaultValue,
+   ValueUnit,
+   ValueSource,
+   Basis,
+   UsedBy,
+   MinValue,
+   MaxValue,
+   AssumptionGroup,
+   SortOrder,
+   CreatedBy,
+   CreatedAt,
+   LastChangedBy,
+   LastChangedAt,
+   LocalLastChangedAt;
+
+  update;
+
+  // a value outside its range is refused
+  validation CheckRange on save { field AssumptionValue; }
+  // a changed value is badged as the client's; back at the default it keeps the shipped source
+  determination MarkSource on modify { field AssumptionValue; }
+  action ResetToDefault result [1] $self;
+
+  mapping for zest_assump
+  {
+    AssumptionKey = assumption_key;
+    AssumptionLabel = assumption_label;
+    AssumptionValue = assumption_value;
+    DefaultValue = default_value;
+    ValueUnit = value_unit;
+    ValueSource = value_source;
+    Basis = basis;
+    UsedBy = used_by;
+    MinValue = min_value;
+    MaxValue = max_value;
+    AssumptionGroup = assumption_group;
+    SortOrder = sort_order;
+    CreatedBy = created_by;
+    CreatedAt = created_at;
+    LastChangedBy = last_changed_by;
+    LastChangedAt = last_changed_at;
+    LocalLastChangedAt = local_last_changed_at;
+  }
+}

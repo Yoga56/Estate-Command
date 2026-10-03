@@ -1,0 +1,19 @@
+@EndUserText: {
+  label: 'Estate Command service'
+}
+@ObjectModel: {
+  leadingEntity: {
+    name: 'ZC_EST_PLAN'
+  }
+}
+define service ZUI_EST_CMD_O4
+  provider contracts odata_v4_ui {
+  expose ZC_EST_PLAN       as Plan;
+  expose ZC_EST_PLAN_L     as PlanLine;
+  expose ZC_EST_ESTATE     as Estate;
+  expose ZC_EST_ASSUMP     as Assumption;
+  expose ZC_EST_IMPORT     as DataImport;
+  expose ZI_EST_BLOCK      as Block;
+  expose ZI_EST_STORES     as Stores;
+  expose ZI_EST_AI_PROV_VH as AIProviderVH;
+}

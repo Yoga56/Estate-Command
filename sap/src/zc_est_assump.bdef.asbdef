@@ -1,0 +1,9 @@
+projection;
+strict ( 2 );
+
+define behavior for ZC_EST_ASSUMP alias Assumption
+use etag
+{
+  use update;
+  use action ResetToDefault;
+}

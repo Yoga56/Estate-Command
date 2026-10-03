@@ -1,0 +1,11 @@
+projection;
+strict ( 2 );
+
+define behavior for ZC_EST_IMPORT alias Import
+use etag
+{
+  use create;
+  use update;
+  use delete;
+  use action Load;
+}

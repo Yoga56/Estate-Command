@@ -1,0 +1,74 @@
+@Metadata.layer: #CORE
+@UI.headerInfo: { typeName: 'Assumption', typeNamePlural: 'Assumption Register',
+                  title: { type: #STANDARD, value: 'AssumptionLabel' },
+                  description: { type: #STANDARD, value: 'AssumptionKey' } }
+@UI.presentationVariant: [ { sortOrder: [ { by: 'SortOrder' } ] } ]
+annotate view ZC_EST_ASSUMP with
+{
+  @UI.facet: [ { id: 'Value', label: 'Value', purpose: #STANDARD, position: 10, type: #IDENTIFICATION_REFERENCE } ]
+  @EndUserText.label: 'Key'
+  @UI.identification: [ { position: 5 },
+                        { type: #FOR_ACTION, dataAction: 'ResetToDefault', label: 'Back to Default' } ]
+  AssumptionKey;
+
+  @EndUserText.label: 'Assumption'
+  @UI.lineItem: [ { position: 10 },
+                  { type: #FOR_ACTION, dataAction: 'ResetToDefault', label: 'Back to Default' } ]
+  @UI.identification: [ { position: 10 } ]
+  AssumptionLabel;
+
+  @EndUserText.label: 'Value'
+  @UI.lineItem: [ { position: 20 } ]
+  @UI.identification: [ { position: 20 } ]
+  AssumptionValue;
+
+  @EndUserText.label: 'Unit'
+  @UI.lineItem: [ { position: 30 } ]
+  @UI.identification: [ { position: 30 } ]
+  ValueUnit;
+
+  @EndUserText.label: 'Source'
+  @UI.lineItem: [ { position: 40 } ]
+  @UI.identification: [ { position: 40 } ]
+  ValueSource;
+
+  @EndUserText.label: 'Default'
+  @UI.lineItem: [ { position: 50 } ]
+  @UI.identification: [ { position: 50 } ]
+  DefaultValue;
+
+  @EndUserText.label: 'Lowest'
+  @UI.identification: [ { position: 60 } ]
+  MinValue;
+
+  @EndUserText.label: 'Highest'
+  @UI.identification: [ { position: 70 } ]
+  MaxValue;
+
+  @EndUserText.label: 'Group'
+  @UI.lineItem: [ { position: 5 } ]
+  @UI.selectionField: [ { position: 10 } ]
+  @UI.identification: [ { position: 80 } ]
+  AssumptionGroup;
+
+  @EndUserText.label: 'Basis'
+  @UI.multiLineText: true
+  @UI.identification: [ { position: 90 } ]
+  Basis;
+
+  @EndUserText.label: 'Used By'
+  @UI.lineItem: [ { position: 60 } ]
+  @UI.identification: [ { position: 100 } ]
+  UsedBy;
+
+  @UI.hidden: true
+  SortOrder;
+
+  @EndUserText.label: 'Changed By'
+  @UI.identification: [ { position: 110 } ]
+  LastChangedBy;
+
+  @EndUserText.label: 'Changed At'
+  @UI.identification: [ { position: 120 } ]
+  LastChangedAt;
+}

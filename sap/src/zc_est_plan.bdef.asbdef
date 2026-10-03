@@ -1,0 +1,27 @@
+projection;
+strict ( 2 );
+
+define behavior for ZC_EST_PLAN alias Plan
+use etag
+{
+  use delete;
+
+  use action GeneratePlan;
+  use action Handover;
+  use action Replan;
+  use action RefreshWords;
+  use action Accept;
+  use action Reject;
+  use action Defer;
+  use action DraftArtifact;
+  use action Ask;
+  use action Outcomes;
+
+  use association _Lines;
+}
+
+define behavior for ZC_EST_PLAN_L alias Line
+use etag
+{
+  use association _Plan;
+}
