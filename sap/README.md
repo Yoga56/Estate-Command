@@ -94,27 +94,37 @@ These have no hand-writable abapGit format.
 
 | Object | Name | Settings |
 |---|---|---|
-| Outbound service (HTTP) | `ZEST_AI_BEDROCK_REST` | Default path prefix empty |
-| Outbound service (HTTP) | `ZEST_AI_GEMINI_REST` | Default path prefix empty |
-| Outbound service (HTTP) | `ZEST_WEATHER_REST` | Default path prefix empty |
-| Communication scenario | `ZEST_AI_BEDROCK` | Outbound `ZEST_AI_BEDROCK_REST`; property `API_KEY`; auth None |
-| Communication scenario | `ZEST_AI_GEMINI` | Outbound `ZEST_AI_GEMINI_REST`; property `API_KEY`; auth None |
-| Communication scenario | `ZEST_WEATHER` | Outbound `ZEST_WEATHER_REST`; auth None |
+| Outbound service (HTTP) | `ZEST_WEATHER_REST` | Default path prefix empty (optional) |
+| Communication scenario | `ZEST_WEATHER` | Outbound `ZEST_WEATHER_REST`; auth None (optional) |
 | Application job catalog entry | `ZEST_PLAN_JOB` | Class `ZCL_EST_PLAN_JOB` |
 | Application job template | `ZEST_PLAN_JOB_T` | Catalog entry above |
 | IAM app (external, UI5) | `ZEST_COMMAND_EXT` | Service `ZUI_EST_CMD_O4` (OData V4), UI5 app `ZEST_COMMAND` |
 | Business catalog | `ZEST_COMMAND_BC` | App above; assign to a business role |
 
-Publish the three scenarios locally.
+Publish the weather scenario locally if you create it.
+
+The AI providers reuse the communication scenarios already in the system; `ZCL_EST_SEED` writes
+these rows into `ZEST_AI_PROV`:
+
+| Provider | Type | Scenario / outbound service | Model |
+|---|---|---|---|
+| `GEMINI_38F` (default) | Gemini | `ZCA_CCORE_OUT` / `ZCA_CCORE_REST` | `gemini-3.8-flash` |
+| `GEMINI_35F` | Gemini | `ZCA_CCORE_OUT` / `ZCA_CCORE_REST` | `gemini-3.5-flash` |
+| `NOVA_2_LITE` | Bedrock | `ZFSCM_AI_BEDROCK` / `ZFSCM_AI_BEDROCK_REST` | `us.amazon.nova-2-lite-v1:0` |
+| `NOVA_PRO` | Bedrock | `ZFSCM_AI_BEDROCK` / `ZFSCM_AI_BEDROCK_REST` | `us.amazon.nova-pro-v1:0` |
+| `BYTEPLUS_SEED` | BytePlus ModelArk (`ZCL_EST_AI_BYTEPLUS`, OpenAI-compatible chat completions) | `ZCA_BYTEPLUS_OUT` / `ZCA_BYTEPLUS_REST` | `seed-1-6-250615` |
+
+The key is read from the row's `API_KEY` field, else from arrangement property `API_KEY`. If an
+existing arrangement keeps no `API_KEY` property (the CFO cockpit keeps its Gemini key in
+`ZFSCM_AI_PROV`), put the key into the `ZEST_AI_PROV` row instead. Model IDs are plain fields:
+change `MODEL_ID` (for BytePlus, a model name or an `ep-...` endpoint ID) to what the account
+has access to; a provider that fails is skipped for the next one by priority.
 
 ### 3. Communication arrangements (Fiori launchpad, administrator)
 
-| | Bedrock | Gemini | Weather |
-|---|---|---|---|
-| Communication system host | `bedrock-runtime.us-east-1.amazonaws.com` | `generativelanguage.googleapis.com` | `api.open-meteo.com` |
-| Port | 443 | 443 | 443 |
-| Outbound user | authentication *None* | authentication *None* | authentication *None* |
-| Property `API_KEY` | Bedrock API key | Gemini API key | - |
+The AI arrangements of `ZCA_CCORE_OUT`, `ZFSCM_AI_BEDROCK` and `ZCA_BYTEPLUS_OUT` already exist.
+For the rain forecast only: communication system host `api.open-meteo.com`, port 443, outbound
+user authentication *None*, arrangement on scenario `ZEST_WEATHER`.
 
 The weather arrangement is optional: without it the plan says the rain is unknown and decides
 without it (set rain on a replan to override).

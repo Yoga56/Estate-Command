@@ -7,7 +7,8 @@ CLASS zcl_est_ai_factory DEFINITION
     CONSTANTS:
       BEGIN OF provider_type,
         gemini  TYPE zest_ai_prov-provider_type VALUE 'GEMINI',
-        bedrock TYPE zest_ai_prov-provider_type VALUE 'BEDROCK',
+        bedrock  TYPE zest_ai_prov-provider_type VALUE 'BEDROCK',
+        byteplus TYPE zest_ai_prov-provider_type VALUE 'BYTEPLUS',
       END OF provider_type.
 
     TYPES ty_configs TYPE STANDARD TABLE OF zcl_est_ai_http=>ty_config WITH EMPTY KEY.
@@ -86,6 +87,8 @@ CLASS zcl_est_ai_factory IMPLEMENTATION.
         result = NEW zcl_est_ai_gemini( config ).
       WHEN provider_type-bedrock.
         result = NEW zcl_est_ai_bedrock( config ).
+      WHEN provider_type-byteplus.
+        result = NEW zcl_est_ai_byteplus( config ).
       WHEN OTHERS.
         RAISE EXCEPTION NEW zcx_est_ai(
           message = |Provider type { config-provider_type } is not supported| ).

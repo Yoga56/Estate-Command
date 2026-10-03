@@ -117,6 +117,7 @@ CLASSES = {
     "ZCL_EST_AI_FACTORY": ("Estate Command: AI provider factory", None),
     "ZCL_EST_AI_BEDROCK": ("Estate Command: Amazon Bedrock Converse", None),
     "ZCL_EST_AI_GEMINI": ("Estate Command: Google Gemini", None),
+    "ZCL_EST_AI_BYTEPLUS": ("Estate Command: BytePlus ModelArk", None),
     "ZCL_EST_AI_TEST": ("Estate Command: providers, plans, stores smoke test", None),
     "ZCL_EST_SEED": ("Estate Command: register, providers, sample estate", None),
     "ZCL_EST_ASSUMPTIONS": ("Estate Command: assumption register", None),

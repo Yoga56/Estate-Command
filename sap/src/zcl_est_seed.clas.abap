@@ -57,37 +57,59 @@ CLASS zcl_est_seed IMPLEMENTATION.
     DATA rows TYPE STANDARD TABLE OF zest_ai_prov WITH EMPTY KEY.
     GET TIME STAMP FIELD DATA(now).
 
+    " The communication scenarios already in the system are reused: Gemini through ZCA_CCORE_OUT,
+    " Bedrock through ZFSCM_AI_BEDROCK, BytePlus ModelArk through ZCA_BYTEPLUS_OUT.
     rows = VALUE #(
       created_by = sy-uname created_at = now last_changed_by = sy-uname last_changed_at = now
       local_last_changed_at = now is_active = abap_true max_tokens = 2000 temperature = '0.20'
-      ( provider_id      = 'NOVA_PRO'
+      ( provider_id      = 'GEMINI_38F'
         priority         = 10
+        provider_type    = zcl_est_ai_factory=>provider_type-gemini
+        description      = 'Google Gemini 3.8 Flash'
+        model_id         = 'gemini-3.8-flash'
+        comm_scenario    = 'ZCA_CCORE_OUT'
+        outbound_service = 'ZCA_CCORE_REST'
+        api_path         = '/v1beta/interactions'
+        api_revision     = '2026-05-20'
+        is_default       = abap_true )
+      ( provider_id      = 'GEMINI_35F'
+        priority         = 20
+        provider_type    = zcl_est_ai_factory=>provider_type-gemini
+        description      = 'Google Gemini 3.5 Flash'
+        model_id         = 'gemini-3.5-flash'
+        comm_scenario    = 'ZCA_CCORE_OUT'
+        outbound_service = 'ZCA_CCORE_REST'
+        api_path         = '/v1beta/interactions'
+        api_revision     = '2026-05-20' )
+      ( provider_id      = 'NOVA_2_LITE'
+        priority         = 30
+        provider_type    = zcl_est_ai_factory=>provider_type-bedrock
+        description      = 'AWS Bedrock Nova 2 Lite'
+        model_id         = 'us.amazon.nova-2-lite-v1:0'
+        comm_scenario    = 'ZFSCM_AI_BEDROCK'
+        outbound_service = 'ZFSCM_AI_BEDROCK_REST'
+        api_path         = '/model/{model}/converse'
+        aws_region       = 'us-east-1' )
+      ( provider_id      = 'NOVA_PRO'
+        priority         = 40
         provider_type    = zcl_est_ai_factory=>provider_type-bedrock
         description      = 'AWS Bedrock Nova Pro (reasoning)'
         model_id         = 'us.amazon.nova-pro-v1:0'
-        comm_scenario    = 'ZEST_AI_BEDROCK'
-        outbound_service = 'ZEST_AI_BEDROCK_REST'
-        api_path         = '/model/{model}/converse'
-        aws_region       = 'us-east-1'
-        is_default       = abap_true )
-      ( provider_id      = 'NOVA_LITE'
-        priority         = 20
-        provider_type    = zcl_est_ai_factory=>provider_type-bedrock
-        description      = 'AWS Bedrock Nova Lite (short-form)'
-        model_id         = 'us.amazon.nova-lite-v1:0'
-        comm_scenario    = 'ZEST_AI_BEDROCK'
-        outbound_service = 'ZEST_AI_BEDROCK_REST'
+        comm_scenario    = 'ZFSCM_AI_BEDROCK'
+        outbound_service = 'ZFSCM_AI_BEDROCK_REST'
         api_path         = '/model/{model}/converse'
         aws_region       = 'us-east-1' )
-      ( provider_id      = 'GEMINI_FLASH'
-        priority         = 30
-        provider_type    = zcl_est_ai_factory=>provider_type-gemini
-        description      = 'Google Gemini Flash'
-        model_id         = 'gemini-3.5-flash'
-        comm_scenario    = 'ZEST_AI_GEMINI'
-        outbound_service = 'ZEST_AI_GEMINI_REST'
-        api_path         = '/v1beta/interactions'
-        api_revision     = '2026-05-20' ) ).
+      ( provider_id      = 'BYTEPLUS_SEED'
+        priority         = 50
+        provider_type    = zcl_est_ai_factory=>provider_type-byteplus
+        description      = 'BytePlus ModelArk Seed'
+        model_id         = 'seed-1-6-250615'
+        comm_scenario    = 'ZCA_BYTEPLUS_OUT'
+        outbound_service = 'ZCA_BYTEPLUS_REST'
+        api_path         = '/api/v3/chat/completions' ) ).
+
+    " rows from an earlier seed on scenarios this package no longer ships
+    DELETE FROM zest_ai_prov WHERE comm_scenario = 'ZEST_AI_BEDROCK' OR comm_scenario = 'ZEST_AI_GEMINI'.
 
     " re-running must not wipe keys maintained since; a new row takes a key of its scenario
     SELECT provider_id, comm_scenario, api_key FROM zest_ai_prov INTO TABLE @DATA(existing_keys).
@@ -154,7 +176,7 @@ CLASS zcl_est_seed IMPLEMENTATION.
                                         latitude              = '-7.0300'
                                         longitude             = '140.8500'
                                         currency              = 'IDR'
-                                        default_provider      = 'NOVA_PRO'
+                                        default_provider      = 'GEMINI_38F'
                                         is_sample             = abap_true
                                         data_end              = data_end
                                         created_by            = sy-uname
