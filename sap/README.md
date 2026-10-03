@@ -79,8 +79,7 @@ The XML beside each source is generated: `python sap/tools/abapgit_meta.py`.
 2. *abapGit Repositories* view → link this repository to the package, branch of your choice →
    **Pull**. `.abapgit.xml` at the root points abapGit at `/sap/src/`; the Python app is ignored.
 3. Activate all (Ctrl+Shift+F3). If mass activation complains, in this order: tables →
-   the value helps `ZI_EST_AI_PROV_VH` and `ZI_EST_ESTATE_VH` (the action parameters `ZA_*`
-   check their value-help entities at activation, so these must be active first) →
+   the value helps `ZI_EST_AI_PROV_VH` and `ZI_EST_ESTATE_VH` →
    `ZR_*`, `ZI_*`, `ZA_*` views and `ZI_EST_STORES` → `ZCX_EST_AI`, `ZIF_EST_AI_PROVIDER`,
    `ZCL_EST_AI_*` → `ZCL_EST_GEO`, `ZCL_EST_ASSUMPTIONS`, `ZCL_EST_DATA`, `ZCL_EST_WEATHER`,
    `ZCL_EST_DEMAND`, `ZCL_EST_SCHEDULER`, `ZCL_EST_AUDIT`, `ZCL_EST_PLAN_BUILDER`,
@@ -168,6 +167,11 @@ launchpad's content security policy.
 ---
 
 ## Check on first activation
+
+The action parameters (`ZA_*`) and `ZC_EST_IMPORT` carry no value-help annotation: a
+`@Consumption.valueHelpDefinition` there is checked against an active entity at activation and
+stopped mass activation. Once `ZI_EST_ESTATE_VH` and `ZI_EST_AI_PROV_VH` are active, the
+annotation can be added back to `Estate` / `ProviderId` for value helps in the action dialogs.
 
 These names come from the released-API documentation and could not be activated against a system
 from here:
