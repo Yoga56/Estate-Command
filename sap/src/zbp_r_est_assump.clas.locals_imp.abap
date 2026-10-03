@@ -32,9 +32,8 @@ CLASS lhc_assumption IMPLEMENTATION.
                       %element-AssumptionValue = if_abap_behv=>mk-on
                       %msg = new_message_with_text(
                                severity = if_abap_behv_message=>severity-error
-                               text     = |{ assumption-AssumptionLabel }: between | &&
-                                          |{ zcl_est_data=>num( CONV #( assumption-MinValue ) ) } and | &&
-                                          |{ zcl_est_data=>num( CONV #( assumption-MaxValue ) ) } { assumption-ValueUnit }| ) )
+                               text     = |{ assumption-AssumptionLabel }: between { assumption-MinValue } | &&
+                                          |and { assumption-MaxValue } { assumption-ValueUnit }| ) )
         TO reported-assumption.
     ENDLOOP.
   ENDMETHOD.
@@ -46,17 +45,25 @@ CLASS lhc_assumption IMPLEMENTATION.
         FIELDS ( AssumptionValue DefaultValue ValueSource ) WITH CORRESPONDING #( keys )
       RESULT DATA(assumptions).
 
+    DATA updates TYPE TABLE FOR UPDATE zr_est_assump.
+
     DATA(defaults) = zcl_est_assumptions=>defaults( ).
+    LOOP AT assumptions INTO DATA(assumption).
+      " back at the default it keeps the shipped source
+      DATA(source) = zcl_est_assumptions=>source-assumed.
+      READ TABLE defaults INTO DATA(shipped) WITH KEY assumption_key = assumption-AssumptionKey.
+      IF sy-subrc = 0.
+        source = shipped-value_source.
+      ENDIF.
+      IF assumption-AssumptionValue <> assumption-DefaultValue.
+        source = zcl_est_assumptions=>source-client.
+      ENDIF.
+      APPEND VALUE #( %tky = assumption-%tky ValueSource = source ) TO updates.
+    ENDLOOP.
+
     MODIFY ENTITIES OF zr_est_assump IN LOCAL MODE
       ENTITY assumption
-        UPDATE FIELDS ( ValueSource )
-          WITH VALUE #( FOR assumption IN assumptions
-                        ( %tky        = assumption-%tky
-                          ValueSource = COND #(
-                            WHEN assumption-AssumptionValue <> assumption-DefaultValue
-                            THEN zcl_est_assumptions=>source-client
-                            ELSE VALUE #( defaults[ assumption_key = assumption-AssumptionKey ]-value_source
-                                          DEFAULT zcl_est_assumptions=>source-assumed ) ) ) ).
+        UPDATE FIELDS ( ValueSource ) WITH updates.
     zcl_est_assumptions=>clear_cache( ).
   ENDMETHOD.
 

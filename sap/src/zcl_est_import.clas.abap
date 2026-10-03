@@ -126,7 +126,8 @@ CLASS zcl_est_import IMPLEMENTATION.
       IF strlen( line ) > 0 AND substring( val = line len = 1 ) = `#`.
         CONTINUE.
       ENDIF.
-      CHECK condense( line ) IS NOT INITIAL.
+      DATA(trimmed) = condense( line ).
+      CHECK trimmed IS NOT INITIAL.
 
       DATA(cells) = split_line( line ).
       IF columns IS INITIAL.

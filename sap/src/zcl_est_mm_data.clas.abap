@@ -153,8 +153,19 @@ CLASS zcl_est_mm_data IMPLEMENTATION.
       WHERE planning~Plant = @plant
         AND ( planning~ReorderThresholdQuantity > 0 OR planning~MRPType LIKE 'V%' )
       ORDER BY planning~ReorderThresholdQuantity DESCENDING
-      INTO CORRESPONDING FIELDS OF TABLE @materials
+      INTO TABLE @DATA(planned)
       UP TO @max_materials ROWS.
+    " quantities arrive as QUAN fields: moved one by one so they convert to DECFLOAT34
+    LOOP AT planned INTO DATA(plan_row).
+      APPEND VALUE #( material       = plan_row-material
+                      material_name  = plan_row-material_name
+                      material_group = plan_row-material_group
+                      unit           = plan_row-unit
+                      quoted_days    = plan_row-quoted_days
+                      reorder_point  = plan_row-reorder_point
+                      safety_stock   = plan_row-safety_stock
+                      rounding       = plan_row-rounding ) TO materials.
+    ENDLOOP.
     CHECK materials IS NOT INITIAL.
 
     " aggregates cannot be combined with FOR ALL ENTRIES: read the plant, keep the materials planned
