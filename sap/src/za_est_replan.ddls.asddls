@@ -16,5 +16,6 @@ define abstract entity ZA_EST_REPLAN
   @EndUserText.label: 'Clear Earlier Changes First'
   ClearChanges  : abap_boolean;
   @EndUserText.label: 'AI Provider (blank = same)'
+  @Consumption.valueHelpDefinition: [ { entity: { name: 'ZI_EST_AI_PROV_VH', element: 'ProviderId' } } ]
   ProviderId    : abap.char(20);
 }
