@@ -16,4 +16,5 @@ define service ZUI_EST_CMD_O4
   expose ZI_EST_BLOCK      as Block;
   expose ZI_EST_STORES     as Stores;
   expose ZI_EST_AI_PROV_VH as AIProviderVH;
+  expose ZI_EST_ESTATE_VH  as EstateVH;
 }

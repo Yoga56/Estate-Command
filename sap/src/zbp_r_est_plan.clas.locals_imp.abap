@@ -381,7 +381,7 @@ CLASS lhc_plan IMPLEMENTATION.
       ENTITY plan BY \_Lines
         ALL FIELDS WITH CORRESPONDING #( keys )
         RESULT DATA(lines).
-    SORT lines BY LineNo.
+    SORT lines BY LineNumber.
 
     LOOP AT plans INTO DATA(current).
       DATA(text) = zcl_est_plan_builder=>draft_artifact(

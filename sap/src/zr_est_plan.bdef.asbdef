@@ -154,7 +154,7 @@ etag master LocalLastChangedAt
   field ( readonly )
    LineUuid,
    PlanUuid,
-   LineNo,
+   LineNumber,
    IsAssigned,
    CrewCode,
    CrewRange,
@@ -195,7 +195,7 @@ etag master LocalLastChangedAt
   {
     LineUuid = line_uuid;
     PlanUuid = plan_uuid;
-    LineNo = line_no;
+    LineNumber = line_no;
     IsAssigned = is_assigned;
     CrewCode = crew_code;
     CrewRange = crew_range;

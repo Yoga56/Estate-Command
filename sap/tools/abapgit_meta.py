@@ -142,6 +142,7 @@ INTERFACES = {"ZIF_EST_AI_PROVIDER": "Estate Command: AI provider"}
 
 DDLS = {
     "ZI_EST_AI_PROV_VH": "AI Provider",
+    "ZI_EST_ESTATE_VH": "Estate",
     "ZI_EST_BLOCK": "Estate Block",
     "ZR_EST_PLAN": "Tomorrow's Assignment",
     "ZR_EST_PLAN_L": "Assignment Line",

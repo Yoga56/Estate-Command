@@ -62,7 +62,7 @@ and the text-to-SQL surfaces.
 |---|---|
 | Tables | `ZEST_AI_PROV`, `ZEST_ESTATE`, `ZEST_BLOCK`, `ZEST_CREW`, `ZEST_ATTEND`, `ZEST_WORKORD`, `ZEST_UPKEEP`, `ZEST_ASSUMP`, `ZEST_PLAN`, `ZEST_PLAN_L`, `ZEST_IMPORT`, `ZEST_MM_MOCK` |
 | RAP BOs | `ZR_EST_PLAN` (+ `_L`), `ZR_EST_ASSUMP`, `ZR_EST_ESTATE`, `ZR_EST_IMPORT`; projections `ZC_*`; behavior pools `ZBP_R_EST_*` |
-| Read-only | `ZI_EST_BLOCK`, custom entity `ZI_EST_STORES` (`ZCL_EST_STORES_QUERY`), `ZI_EST_AI_PROV_VH` |
+| Read-only | `ZI_EST_BLOCK`, custom entity `ZI_EST_STORES` (`ZCL_EST_STORES_QUERY`), value helps `ZI_EST_AI_PROV_VH`, `ZI_EST_ESTATE_VH` |
 | Action parameters | `ZA_EST_GEN_PLAN`, `ZA_EST_REPLAN`, `ZA_EST_PROVIDER`, `ZA_EST_DECISION`, `ZA_EST_QUESTION`, `ZA_EST_ANSWER`, `ZA_EST_ESTATE_P`, `ZA_EST_HANDOVER`, `ZA_EST_OUTCOME` |
 | Service | definition and OData V4 UI binding `ZUI_EST_CMD_O4` |
 | Classes | see the table above; `ZCL_EST_SEED` and `ZCL_EST_AI_TEST` are run with F9 |
@@ -79,6 +79,8 @@ The XML beside each source is generated: `python sap/tools/abapgit_meta.py`.
 2. *abapGit Repositories* view → link this repository to the package, branch of your choice →
    **Pull**. `.abapgit.xml` at the root points abapGit at `/sap/src/`; the Python app is ignored.
 3. Activate all (Ctrl+Shift+F3). If mass activation complains, in this order: tables →
+   the value helps `ZI_EST_AI_PROV_VH` and `ZI_EST_ESTATE_VH` (the action parameters `ZA_*`
+   check their value-help entities at activation, so these must be active first) →
    `ZR_*`, `ZI_*`, `ZA_*` views and `ZI_EST_STORES` → `ZCX_EST_AI`, `ZIF_EST_AI_PROVIDER`,
    `ZCL_EST_AI_*` → `ZCL_EST_GEO`, `ZCL_EST_ASSUMPTIONS`, `ZCL_EST_DATA`, `ZCL_EST_WEATHER`,
    `ZCL_EST_DEMAND`, `ZCL_EST_SCHEDULER`, `ZCL_EST_AUDIT`, `ZCL_EST_PLAN_BUILDER`,

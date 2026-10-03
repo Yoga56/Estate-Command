@@ -40,7 +40,7 @@ sap.ui.define([
     /** One plan with its lines; it becomes the plan the actions work on. */
     load: async function (planUuid) {
       const binding = this._model.bindContext("/Plan(PlanUuid=" + planUuid + ")", undefined,
-        { $expand: { _Lines: { $orderby: "LineNo" } } });
+        { $expand: { _Lines: { $orderby: "LineNumber" } } });
       this._context = binding.getBoundContext();
       return this._context.requestObject();
     },

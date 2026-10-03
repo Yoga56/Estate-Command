@@ -7,7 +7,7 @@ define view entity ZR_EST_PLAN_L
 {
   key line_uuid as LineUuid,
   plan_uuid as PlanUuid,
-  line_no as LineNo,
+  line_no as LineNumber,
   is_assigned as IsAssigned,
   crew_code as CrewCode,
   crew_range as CrewRange,

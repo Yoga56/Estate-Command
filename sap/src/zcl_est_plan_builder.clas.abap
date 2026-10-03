@@ -57,7 +57,7 @@ CLASS zcl_est_plan_builder DEFINITION
       END OF ty_header.
     TYPES:
       BEGIN OF ty_line,
-        lineno        TYPE i,
+        linenumber    TYPE i,
         isassigned    TYPE abap_bool,
         crewcode      TYPE zest_plan_l-crew_code,
         crewrange     TYPE zest_plan_l-crew_range,
@@ -342,7 +342,7 @@ CLASS zcl_est_plan_builder IMPLEMENTATION.
       LOOP AT crew-assigned INTO DATA(assignment).
         number = number + 1.
         APPEND VALUE #(
-          lineno        = number
+          linenumber    = number
           isassigned    = abap_true
           crewcode      = crew-crew_code
           crewrange     = crew-range_label
@@ -383,7 +383,7 @@ CLASS zcl_est_plan_builder IMPLEMENTATION.
       ENDIF.
       number = number + 1.
       APPEND VALUE #(
-        lineno        = number
+        linenumber    = number
         isassigned    = abap_false
         blockkey      = item-block_key
         blocklabel    = item-block_label

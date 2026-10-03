@@ -2,7 +2,7 @@
 @UI.headerInfo: { typeName: 'Assignment Line', typeNamePlural: 'Assignment',
                   title: { type: #STANDARD, value: 'BlockLabel' },
                   description: { type: #STANDARD, value: 'CrewCode' } }
-@UI.presentationVariant: [ { sortOrder: [ { by: 'LineNo' } ] } ]
+@UI.presentationVariant: [ { sortOrder: [ { by: 'LineNumber' } ] } ]
 annotate view ZC_EST_PLAN_L with
 {
   @UI.facet: [ { id: 'Line', label: 'Line', purpose: #STANDARD, position: 10, type: #IDENTIFICATION_REFERENCE } ]
@@ -17,7 +17,7 @@ annotate view ZC_EST_PLAN_L with
 
   @EndUserText.label: '#'
   @UI.lineItem: [ { position: 10 } ]
-  LineNo;
+  LineNumber;
 
   @EndUserText.label: 'Assigned'
   @UI.lineItem: [ { position: 15 } ]

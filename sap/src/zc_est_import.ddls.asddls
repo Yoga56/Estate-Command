@@ -8,7 +8,7 @@ define root view entity ZC_EST_IMPORT
 {
   key ImportUuid,
   DataKind,
-  @Consumption.valueHelpDefinition: [ { entity: { name: 'ZC_EST_ESTATE', element: 'Estate' } } ]
+  @Consumption.valueHelpDefinition: [ { entity: { name: 'ZI_EST_ESTATE_VH', element: 'Estate' } } ]
   Estate,
   FileName,
   @Semantics.mimeType: true
