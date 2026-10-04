@@ -1,5 +1,7 @@
 # Estate Command on SAP
 
+**Specifications:** [Functional](docs/functional-specification.md) · [Technical](docs/technical-specification.md)
+
 The SAP edition of Estate Command: tomorrow's crew assignment, the assumption register, the
 decision log, the AI layer and the stores answer, running **inside** SAP S/4HANA Cloud Public
 Edition or the SAP BTP ABAP environment as ABAP Cloud (RAP, CDS, OData V4, Fiori).
@@ -35,7 +37,7 @@ carries its figures when every provider fails (status `F`).
 | (new) NASA FIRMS fire hotspots | `ZCL_EST_FIRMS`, custom entity `ZI_EST_FIRE` (communication scenario `ZEST_FIRMS`) |
 | `gis/stores.py`, `models/leadtime.py`, `consumption.py`, `safety_stock.py`, `mm.py` | `ZCL_EST_STORES`, `ZCL_EST_MM_DATA` (released MM views, or `ZEST_MM_MOCK`), custom entity `ZI_EST_STORES` |
 | `gis/data/synthetic/*.csv` | Data Import BO `ZR_EST_IMPORT` + `sap/tools/export_sap_seed.py` |
-| `/command` MapLibre map | UI5 app `sap/app/estatecommand` (SVG block map, CSP-safe) |
+| `/command` MapLibre map | UI5 app `sap/app/estatecommand` (Leaflet over Esri imagery, glass panels, phone layout) |
 | background warm-up / cron | application job `ZCL_EST_PLAN_JOB` |
 
 What changes in SAP:
