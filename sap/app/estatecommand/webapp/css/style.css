@@ -248,7 +248,7 @@
 .estPage .estPanelHandle.sapMBtn { position: absolute; top: var(--estGap); right: var(--estGap); z-index: 12;
   height: auto; padding: 0; background: none; }
 .estPage .estPanelHandle.sapMBtn .sapMBtnInner { height: 44px; min-width: 44px; padding: 0 14px 0 10px; border-radius: 14px;
-  background: rgba(12, 22, 17, 0.55) !important; border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(12, 22, 17, 0.68) !important; border: 1px solid rgba(255, 255, 255, 0.3);
   -webkit-backdrop-filter: blur(16px) saturate(140%); backdrop-filter: blur(16px) saturate(140%);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); color: #fff; }
 .estPage .estPanelHandle.sapMBtn .sapMBtnInner:hover { background: rgba(40, 52, 46, 0.7) !important; }
@@ -404,5 +404,10 @@ html.estApp .sapMPopover .sapMLIBFocusable:focus { outline-offset: -2px; }
   .estGrid .sapMText { font-size: 0.8125rem; }
   .estPage .estPanelHandle.sapMBtn { top: auto; bottom: calc(var(--estGap) + 36px); right: auto; left: var(--estGap); }
   .estBlockCard { top: calc(var(--estGap) + 60px); max-height: calc(60% - 140px); }
-  .estStripesStage { bottom: 60%; height: 26%; min-height: 160px; width: 75%; min-width: 0; }
+  /* the ribbons sit in a real corner: above the sheet when it is open, at the bottom when it is closed */
+  .estStripesStage { bottom: 60%; height: 30%; min-height: 180px; width: 88%; min-width: 0; }
+  .estPanelClosed .estStripesStage { bottom: 0; height: 40%; width: 92%; }
+  /* with the sheet up there is no room left: the block card and its ribbons wait until it goes down */
+  .estPage:not(.estPanelClosed) .estBlockCard,
+  .estPage:not(.estPanelClosed) .estStripesStage { visibility: hidden; }
 }

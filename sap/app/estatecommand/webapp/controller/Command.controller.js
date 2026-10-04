@@ -233,6 +233,10 @@ sap.ui.define([
     },
 
     onBlockSelect: function (event) {
+      // on a phone the sheet gives the block the screen; Plan brings it back
+      if (this._view.getProperty("/panelOpen") && window.matchMedia && window.matchMedia(PHONE).matches) {
+        this.onTogglePanel();
+      }
       this._selection = (this._selection || 0) + 1;
       this.byId("blockCard").removeStyleClass("estLeaving");
       this._select(event.getParameter("block"), event.getParameter("lines") || [], event.getParameter("color"));

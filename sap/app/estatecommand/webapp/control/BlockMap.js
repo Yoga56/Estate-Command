@@ -42,6 +42,7 @@ sap.ui.define([
   const FIRE_KEY = "zestate.command.fireLayer";
   // detections closer than this are one fire on the ground (a VIIRS pixel)
   const MERGE_KM = 0.375;
+  const touchOnly = () => !!(window.matchMedia && window.matchMedia("(hover: none)").matches);
   const sourceOf = (fire) => FIRE_SOURCES.find((source) => source.match(fire)) || { key: "other", label: "other" };
   const loadFireOptions = () => {
     try {
@@ -542,10 +543,14 @@ sap.ui.define([
               ? { color: color, weight: 2, opacity: 0.95, fillColor: color, fillOpacity: 0.12, dashArray: "6 4" }
               : { color: color, weight: 1, opacity: 0.55, fillColor: "#ffffff", fillOpacity: 0.02, dashArray: "2 5" };
 
-        const polygon = L.polygon(ring, Object.assign({ className: "estBlock estBlock--" + kind }, style))
-          .bindTooltip(this._tooltip(block, assigned, missed || held, color, held), {
+        const polygon = L.polygon(ring, Object.assign({ className: "estBlock estBlock--" + kind }, style));
+        // a touch screen has no hover: a tap opens the block card, and a tooltip would stay stuck
+        if (!touchOnly()) {
+          polygon.bindTooltip(this._tooltip(block, assigned, missed || held, color, held), {
             sticky: true, direction: "top", offset: [0, -10], className: "estTip", opacity: 1
-          })
+          });
+        }
+        polygon
           .on("mouseover", () => polygon.setStyle({ weight: style.weight + 1.5, fillOpacity: style.fillOpacity + 0.18 }))
           .on("mouseout", () => polygon.setStyle(style))
           .on("click", () => this.fireSelect({ block: block, lines: lines, color: color }));
