@@ -25,7 +25,8 @@ sap.ui.define([
     plus: svg("<path d=\"M12 5v14M5 12h14\"/>"),
     minus: svg("<path d=\"M5 12h14\"/>"),
     fit: svg("<path d=\"M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5\"/>"),
-    layers: svg("<path d=\"M12 3 2 8l10 5 10-5-10-5z\"/><path d=\"m2 16 10 5 10-5\"/><path d=\"m2 12 10 5 10-5\"/>")
+    layers: svg("<path d=\"M12 3 2 8l10 5 10-5-10-5z\"/><path d=\"m2 16 10 5 10-5\"/><path d=\"m2 12 10 5 10-5\"/>"),
+    check: svg("<path d=\"m5 12 5 5 9-10\"/>")
   };
   // a block without a polygon is drawn as a rectangle this many degrees around its centroid
   const HALF_LON = 0.00135;
@@ -42,11 +43,28 @@ sap.ui.define([
   const escape = (text) => String(text == null ? "" : text)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-  /** A row of map buttons in the glass style: [{ icon (text), title, press }] */
+  /** Tile x/y at zoom z holding a point, for the basemap thumbnails */
+  const tileOf = (lat, lon, z) => {
+    const n = Math.pow(2, z);
+    const rad = lat * Math.PI / 180;
+    return {
+      x: Math.floor((lon + 180) / 360 * n),
+      y: Math.floor((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * n)
+    };
+  };
+
+  /**
+   * A column of map buttons in the glass style, with a menu that opens beside it:
+   * buttons [{ icon (svg), title, press(button, control) }]
+   */
   const ButtonBar = L.Control.extend({
     onAdd: function () {
-      const bar = L.DomUtil.create("div", "estMapBar");
-      L.DomEvent.disableClickPropagation(bar);
+      const wrapper = L.DomUtil.create("div", "estMapCtl");
+      L.DomEvent.disableClickPropagation(wrapper);
+      L.DomEvent.disableScrollPropagation(wrapper);
+      const bar = L.DomUtil.create("div", "estMapBar", wrapper);
+      this.menu = L.DomUtil.create("div", "estMapMenu", wrapper);
+      this.menu.hidden = true;
       this.options.buttons.forEach((button) => {
         const element = L.DomUtil.create("button", "estMapBtn", bar);
         element.type = "button";
@@ -55,10 +73,10 @@ sap.ui.define([
         element.innerHTML = button.icon;
         L.DomEvent.on(element, "click", (event) => {
           L.DomEvent.stop(event);
-          button.press(element);
+          button.press(element, this);
         });
       });
-      return bar;
+      return wrapper;
     }
   });
 
@@ -153,6 +171,7 @@ sap.ui.define([
     },
 
     exit: function () {
+      this._closeMenu();
       this._deregister();
       if (this._map) {
         this._map.remove();
@@ -183,17 +202,67 @@ sap.ui.define([
           { icon: ICONS.plus, title: "Zoom in", press: () => this._map.zoomIn() },
           { icon: ICONS.minus, title: "Zoom out", press: () => this._map.zoomOut() },
           { icon: ICONS.fit, title: "Fit the estate", press: () => this.fit(true) },
-          { icon: ICONS.layers, title: "Basemap: satellite, terrain, dark", press: (button) => {
-            const next = BASEMAP_ORDER[(BASEMAP_ORDER.indexOf(this._basemapKey) + 1) % BASEMAP_ORDER.length];
-            this._setBasemap(next);
-            button.title = "Basemap: " + BASEMAPS[next].title;
-          } }
+          { icon: ICONS.layers, title: "Choose the basemap", press: (button, bar) => this._toggleMenu(bar, button) }
         ]
       }).addTo(this._map);
+      this._map.on("click movestart", () => this._closeMenu());
 
       const near = () => dom.classList.toggle("estNear", this._map.getZoom() >= NEAR_ZOOM);
       this._map.on("zoomend", near);
       near();
+    },
+
+    /** The basemap menu: one entry per basemap, with a tile of the estate as its picture */
+    _toggleMenu: function (bar, button) {
+      if (!bar.menu.hidden) {
+        this._closeMenu();
+        return;
+      }
+      const center = this._map.getCenter();
+      const z = Math.max(3, Math.min(15, Math.round(this._map.getZoom()) - 1));
+      const tile = tileOf(center.lat, center.lng, z);
+      bar.menu.innerHTML = "";
+      bar.menu.setAttribute("role", "menu");
+      bar.menu.setAttribute("aria-label", "Basemap");
+      BASEMAP_ORDER.forEach((key) => {
+        const basemap = BASEMAPS[key];
+        const item = L.DomUtil.create("button", "estMapMenuItem", bar.menu);
+        item.type = "button";
+        item.setAttribute("role", "menuitemradio");
+        item.setAttribute("aria-checked", String(key === this._basemapKey));
+        item.innerHTML = "<img alt=\"\" src=\"" + ESRI + basemap.tiles[0] + "/MapServer/tile/" + Math.min(z, basemap.native) +
+          "/" + tile.y + "/" + tile.x + "\"><span>" + basemap.title + "</span>" + ICONS.check;
+        L.DomEvent.on(item, "click", (event) => {
+          L.DomEvent.stop(event);
+          this._setBasemap(key);
+          this._closeMenu();
+          button.focus();
+        });
+      });
+      bar.menu.hidden = false;
+      button.setAttribute("aria-expanded", "true");
+      this._menuBar = bar;
+      this._menuButton = button;
+      this._onMenuKey = (event) => {
+        if (event.key === "Escape") {
+          this._closeMenu();
+          button.focus();
+        }
+      };
+      document.addEventListener("keydown", this._onMenuKey);
+      const checked = bar.menu.querySelector("[aria-checked=true]");
+      if (checked) {
+        checked.focus();
+      }
+    },
+
+    _closeMenu: function () {
+      if (this._menuBar) {
+        this._menuBar.menu.hidden = true;
+        this._menuButton.setAttribute("aria-expanded", "false");
+        document.removeEventListener("keydown", this._onMenuKey);
+        this._menuBar = null;
+      }
     },
 
     _setBasemap: function (key) {
