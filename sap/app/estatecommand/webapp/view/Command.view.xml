@@ -41,8 +41,10 @@
         </VBox>
       </VBox>
 
-      <!-- the block picked on the map -->
-      <VBox class="estGlass estBlockCard" visible="{= !!${view>/selected} }" renderType="Bare">
+      <!-- the block picked on the map: its facts run on stripes across the map, its lines on the card -->
+      <est:BlockStripes id="stripes" class="estStripesStage" facts="{view>/selected/facts}" color="{view>/selected/color}"
+                        config="{stripes>/}"/>
+      <VBox id="blockCard" class="estGlass estBlockCard" visible="{= !!${view>/selected} }" renderType="Bare">
         <HBox class="estCardHead" alignItems="Center" renderType="Bare">
           <core:Icon src="sap-icon://color-fill" color="{view>/selected/color}" size="0.875rem"/>
           <VBox class="estCardTitle" renderType="Bare">
@@ -52,7 +54,6 @@
           <Button type="Transparent" icon="sap-icon://action-settings" tooltip="Configure the stripes" press=".onStripesSettings"/>
           <Button type="Transparent" icon="sap-icon://decline" tooltip="Close" press=".onBlockClose"/>
         </HBox>
-        <est:BlockStripes id="stripes" facts="{view>/selected/facts}" color="{view>/selected/color}" config="{stripes>/}"/>
         <List items="{ path: 'view>/selected/rows', templateShareable: false }" backgroundDesign="Transparent"
               showSeparators="Inner" noDataText="Nothing due on this block in the plan." class="estCardLines">
           <CustomListItem>
@@ -295,7 +296,8 @@
     </content>
 
     <dependents>
-      <Popover id="stripesSettings" title="Block stripes" placement="Auto" contentWidth="21rem" class="estPop">
+      <Popover id="stripesSettings" title="Block stripes" placement="Auto" contentWidth="21rem" showArrow="false"
+               class="estPop">
         <f:SimpleForm editable="true" layout="ResponsiveGridLayout" labelSpanL="4" labelSpanM="4" labelSpanS="4"
                       backgroundDesign="Transparent">
           <Label text="Preset"/>
@@ -318,6 +320,7 @@
           <MultiComboBox selectedKeys="{stripes>/facts}" items="{ path: 'stripes>/catalogue', templateShareable: false }">
             <core:Item key="{stripes>key}" text="{stripes>text}"/>
           </MultiComboBox>
+          <Label text="Angle"/><Slider min="-45" max="45" step="1" value="{stripes>/angle}"/>
           <Label text="Stripes"/><Slider min="1" max="10" step="1" value="{stripes>/rows}" enableTickmarks="true"/>
           <Label text="Twist"/><Slider min="0" max="3.14" step="0.02" value="{stripes>/twist}"/>
           <Label text="Twists"/><Slider min="0" max="4" step="0.1" value="{stripes>/twistWaves}"/>

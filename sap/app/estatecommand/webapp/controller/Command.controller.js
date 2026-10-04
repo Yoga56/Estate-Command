@@ -167,11 +167,21 @@ sap.ui.define([
     },
 
     onBlockSelect: function (event) {
+      this._selection = (this._selection || 0) + 1;
+      this.byId("blockCard").removeStyleClass("estLeaving");
       this._select(event.getParameter("block"), event.getParameter("lines") || [], event.getParameter("color"));
+      this.byId("stripes").show();
     },
 
-    onBlockClose: function () {
-      this._view.setProperty("/selected", null);
+    /** The stripes run out and the card fades, then the block lets go - unless another was picked meanwhile */
+    onBlockClose: async function () {
+      const selection = this._selection;
+      this.byId("blockCard").addStyleClass("estLeaving");
+      await this.byId("stripes").hide();
+      if (selection === this._selection) {
+        this.byId("blockCard").removeStyleClass("estLeaving");
+        this._view.setProperty("/selected", null);
+      }
     },
 
     // --- the block stripes: settings kept per viewer in the browser
@@ -236,7 +246,7 @@ sap.ui.define([
       const estate = this._view.getProperty("/estate");
       const record = this._view.getProperty("/estates").find((e) => e.Estate === estate) || {};
       this._view.setProperty("/subtitle", record.EstateName || estate);
-      this._view.setProperty("/selected", null);
+      this.onBlockClose();
       this._view.setProperty("/blocks", await this._service.blocks(estate));
       this._view.setProperty("/stores", []);
       this._view.setProperty("/handover", null);
@@ -285,7 +295,7 @@ sap.ui.define([
         this._view.setProperty("/plan", null);
         this._view.setProperty("/planUuid", "");
         this._view.setProperty("/crews", []);
-        this._view.setProperty("/selected", null);
+        this.onBlockClose();
         this._legend();
       }
     },
@@ -331,7 +341,7 @@ sap.ui.define([
     /** The block card: its stripes and its plan lines */
     _select: function (block, lines, color) {
       if (!block) {
-        this._view.setProperty("/selected", null);
+        this.onBlockClose();
         return;
       }
       const assigned = lines.find((l) => l.IsAssigned);

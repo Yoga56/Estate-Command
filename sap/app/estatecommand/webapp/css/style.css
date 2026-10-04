@@ -1,18 +1,24 @@
 /* Estate Command: the map fills the page, the rest floats over it on frosted glass.
    Colours come from the theme parameters, so light and dark themes both read. */
 
-.estPage {
+.estPage, .estPop {
   --estGap: 16px;
   --estPanelWidth: 440px;
   --estGlassBg: rgba(255, 255, 255, 0.62);
   --estGlassBorder: rgba(255, 255, 255, 0.45);
   --estGlassShadow: 0 12px 32px rgba(4, 16, 10, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.35);
   --estRadius: 18px;
+  --estPillBg: rgba(255, 255, 255, 0.4);
+  --estPillHover: rgba(255, 255, 255, 0.6);
+  --estFieldBg: rgba(255, 255, 255, 0.5);
 }
 @supports (background: color-mix(in srgb, red 50%, transparent)) {
-  .estPage {
+  .estPage, .estPop {
     --estGlassBg: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 64%, transparent);
     --estGlassBorder: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 45%, transparent);
+    --estPillBg: color-mix(in srgb, var(--sapButton_Background, #fff) 42%, transparent);
+    --estPillHover: color-mix(in srgb, var(--sapButton_Hover_Background, #eaecee) 70%, transparent);
+    --estFieldBg: color-mix(in srgb, var(--sapField_Background, #fff) 52%, transparent);
   }
 }
 .estPage > section,
@@ -115,18 +121,61 @@
 .estKey--seq { width: 16px; height: 16px; border-radius: 50%; background: #80ed99; color: #08130d; font-size: 10px;
   font-weight: 700; border: 1.5px solid #fff; }
 
+/* --- block stripes: no box, a tilted band across the lower left of the map */
+.estStripesStage { position: absolute; left: -8%; bottom: 220px; width: 104%; height: 28%; min-height: 170px; max-height: 300px;
+  z-index: 6; pointer-events: none; transform-origin: 0 100%; transform: rotate(var(--estStripesAngle, -12deg)); }
+.estStripesStage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.45)); }
+
 /* --- block card */
-.estBlockCard { position: absolute; left: var(--estGap); bottom: var(--estGap); z-index: 11; width: 420px;
-  max-width: calc(100% - 2 * var(--estGap)); max-height: calc(100% - 200px); display: flex; flex-direction: column;
-  overflow: hidden; animation: estRise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1); }
-@keyframes estRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
-.estCardHead { display: flex; gap: 10px; padding: 10px 6px 8px 16px; }
+.estBlockCard { position: absolute; left: var(--estGap); bottom: var(--estGap); z-index: 11; width: 400px;
+  max-width: calc(100% - 2 * var(--estGap)); max-height: 34%; display: flex; flex-direction: column;
+  overflow: hidden; animation: estRise 0.36s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.estBlockCard.estLeaving { animation: estSink 0.42s cubic-bezier(0.4, 0, 1, 1) forwards; pointer-events: none; }
+@keyframes estRise { from { opacity: 0; transform: translateY(18px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes estSink { to { opacity: 0; transform: translateY(18px) scale(0.98); } }
+@media (prefers-reduced-motion: reduce) { .estBlockCard, .estBlockCard.estLeaving { animation: none; } }
+.estCardHead { display: flex; gap: 10px; padding: 10px 8px 6px 16px; }
 .estCardTitle { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.estStripes { position: relative; margin: 0 12px; border-radius: 12px; overflow: hidden; background: #08130d;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
-.estStripes canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.estCardLines { overflow: auto; padding: 4px 4px 8px; }
+.estCardLines { overflow: auto; padding: 0 4px 8px; }
 .estLine { display: flex; flex-direction: column; gap: 2px; padding: 6px 4px; }
+
+/* --- buttons and fields: frosted pills, one style for every button on the page */
+.estPage .sapMBtn .sapMBtnInner,
+.estPop .sapMBtn .sapMBtnInner {
+  border-radius: 999px; border: 1px solid var(--estGlassBorder); background: var(--estPillBg);
+  -webkit-backdrop-filter: blur(14px) saturate(160%); backdrop-filter: blur(14px) saturate(160%);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.estPage .sapMBtn .sapMBtnInner.sapMBtnHoverable:hover,
+.estPop .sapMBtn .sapMBtnInner.sapMBtnHoverable:hover { background: var(--estPillHover); }
+.estPage .sapMBtn:active .sapMBtnInner, .estPop .sapMBtn:active .sapMBtnInner { transform: scale(0.97); }
+.estPage .sapMBtn .sapMBtnInner.sapMBtnTransparent,
+.estPop .sapMBtn .sapMBtnInner.sapMBtnTransparent {
+  background: transparent; border-color: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.estPage .sapMBtn .sapMBtnInner.sapMBtnTransparent:hover,
+.estPop .sapMBtn .sapMBtnInner.sapMBtnTransparent:hover { background: var(--estPillBg); border-color: var(--estGlassBorder); }
+.estPage .sapMBtn .sapMBtnInner.sapMBtnEmphasized {
+  background: color-mix(in srgb, var(--sapButton_Emphasized_Background, #0070f2) 74%, transparent);
+  border-color: color-mix(in srgb, var(--sapButton_Emphasized_Background, #0070f2) 40%, #ffffff); }
+.estPage .sapMBtn .sapMBtnInner.sapMBtnEmphasized:hover {
+  background: color-mix(in srgb, var(--sapButton_Emphasized_Hover_Background, #0064d9) 88%, transparent); }
+.estPage .sapMBtn .sapMBtnInner.sapMBtnAccept {
+  background: color-mix(in srgb, var(--sapButton_Accept_Background, #f5fae5) 62%, transparent); }
+.estPage .sapMBtn .sapMBtnInner.sapMBtnReject {
+  background: color-mix(in srgb, var(--sapButton_Reject_Background, #fff8d6) 62%, transparent); }
+.estPage .sapMBtn:focus-visible .sapMBtnInner, .estPop .sapMBtn:focus-visible .sapMBtnInner { border-radius: 999px; }
+
+.estPage .sapMSlt, .estPop .sapMSlt,
+.estPage .sapMInputBaseContentWrapper, .estPop .sapMInputBaseContentWrapper {
+  border-radius: 999px; background: var(--estFieldBg) !important; border-color: var(--estGlassBorder);
+  -webkit-backdrop-filter: blur(14px) saturate(160%); backdrop-filter: blur(14px) saturate(160%); }
+.estPage .sapMSlt .sapMSltArrow, .estPop .sapMSlt .sapMSltArrow,
+.estPage .sapMInputBaseIconContainer, .estPop .sapMInputBaseIconContainer { background: transparent; border-radius: 999px; }
+.estPage .sapMSltLabel, .estPop .sapMSltLabel { padding-left: 0.875rem; }
+.estPage .sapMTextArea .sapMInputBaseContentWrapper { border-radius: 14px; }
+.estPage .sapMInputBaseInner, .estPop .sapMInputBaseInner { background: transparent; }
 
 /* --- plan panel */
 .estPanel { position: absolute; top: var(--estGap); right: var(--estGap); bottom: var(--estGap); z-index: 12;
@@ -186,8 +235,12 @@
 .estTable .sapMListTblHeader, .estTable .sapMListTblRow, .estTable .sapMListTblHeaderCell,
 .estCrews .sapMLIB, .estCardLines .sapMLIB, .estSection .sapMLIB { background: transparent !important; }
 
-/* --- stripes settings */
-.estPop .sapMPopoverCont { background: var(--estGlassBg); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+/* --- stripes settings: the popover is glass too */
+.sapMPopover.estPop { background: var(--estGlassBg); border: 1px solid var(--estGlassBorder); border-radius: var(--estRadius);
+  box-shadow: var(--estGlassShadow); -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%);
+  overflow: hidden; }
+.estPop .sapMPopoverCont, .estPop .sapMPopoverHeader, .estPop .sapMPopoverFooter, .estPop .sapMIBar, .estPop .sapUiForm,
+.estPop .sapMPopoverWrapper { background: transparent !important; box-shadow: none !important; }
 
 /* narrow windows: the panel takes the lower half, the map the upper */
 @media (max-width: 900px) {
@@ -197,4 +250,5 @@
   .estTopBar { max-width: calc(100% - 2 * var(--estGap)); }
   .estLegend { display: none; }
   .estBlockCard { bottom: auto; top: calc(var(--estGap) + 68px); max-height: calc(52% - 100px); }
+  .estStripesStage { bottom: calc(48% + 48px); height: 20%; min-height: 120px; width: 110%; }
 }
