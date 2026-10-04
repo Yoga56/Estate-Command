@@ -3,24 +3,60 @@ sap.ui.define([
   "sap/ui/model/json/JSONModel",
   "sap/m/MessageBox",
   "sap/m/MessageToast",
-  "sap/ui/core/BusyIndicator"
-], function (Controller, JSONModel, MessageBox, MessageToast, BusyIndicator) {
+  "sap/ui/core/BusyIndicator",
+  "zestate/command/control/BlockStripes"
+], function (Controller, JSONModel, MessageBox, MessageToast, BusyIndicator, BlockStripes) {
   "use strict";
 
   const EMPTY_REPLAN = { CrewOut: "", CrewCode: "", CrewPresent: 0, RainMm: "", BlockHeld: "", ContiguityPct: "", ClearChanges: false };
+  const OPERATIONS = [
+    { key: "harvest", text: "Harvest", icon: "sap-icon://nutrition-activity" },
+    { key: "prune", text: "Prune", icon: "sap-icon://scissors" },
+    { key: "weed", text: "Weed", icon: "sap-icon://eraser" },
+    { key: "spray", text: "Spray", icon: "sap-icon://weather-proofing" }
+  ];
+  const STATUS = {
+    P: { text: "Proposed", state: "Information" },
+    F: { text: "Figures only", state: "Warning" },
+    A: { text: "Accepted", state: "Success" },
+    R: { text: "Rejected", state: "Error" },
+    D: { text: "Deferred", state: "Warning" }
+  };
+  const FACTS = [
+    { key: "block", text: "Block" }, { key: "crew", text: "Crew and order" }, { key: "work", text: "Work due" },
+    { key: "mandays", text: "Man-days" }, { key: "urgency", text: "Urgency" }, { key: "deferral", text: "Cost of waiting" },
+    { key: "travel", text: "Travel" }, { key: "area", text: "Area and palms" }, { key: "planted", text: "Planted" },
+    { key: "road", text: "Road" }, { key: "division", text: "Division" }
+  ];
+  const STRIPES_KEY = "zestate.command.stripes";
+  const PANEL_INSET = 472; // panel width + its margins
+  const NARROW = "(max-width: 900px)"; // the panel becomes a sheet over the lower half (style.css)
 
   /** The message an OData failure carries, else the error text. */
   const messageOf = (error) => (error && error.error && error.error.message) || (error && error.message) || String(error);
+  const num = (value, digits) => Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: digits === undefined ? 1 : digits });
+  const statusOf = (code) => STATUS[code] || { text: code || "No plan", state: "None" };
 
   return Controller.extend("zestate.command.controller.Command", {
     onInit: function () {
       this._view = new JSONModel({
-        estates: [], estate: "", operation: "harvest", plans: [], planUuid: "", plan: null, blocks: [], crews: [],
-        legend: "Loading the estate...", decision: { note: "", dueDate: null, expected: "" }, replan: Object.assign({}, EMPTY_REPLAN),
+        estates: [], estate: "", subtitle: "", operation: "harvest", ops: [], plans: [], planUuid: "", plan: null,
+        blocks: [], crews: [], legendTitle: "", legendOpen: true, panelOpen: true, insetRight: 0, insetBottom: 0,
+        selected: null, decision: { note: "", dueDate: null, expected: "" }, replan: Object.assign({}, EMPTY_REPLAN),
         question: "", answer: null, handover: null, outcomes: [], stores: []
       });
       this.getView().setModel(this._view, "view");
+
+      this._stripes = new JSONModel(Object.assign(this._savedStripes(), { catalogue: FACTS }));
+      this._stripes.attachPropertyChange(this.onStripesChange, this);
+      this.getView().setModel(this._stripes, "stripes");
+
+      this._insets();
+      this._onResize = () => this._insets();
+      window.addEventListener("resize", this._onResize);
+
       this._service = this.getOwnerComponent().getService();
+      this._plansByOp = {};
       this._busy(async () => {
         const estates = await this._service.estates();
         this._view.setProperty("/estates", estates);
@@ -31,12 +67,21 @@ sap.ui.define([
       });
     },
 
+    onExit: function () {
+      window.removeEventListener("resize", this._onResize);
+    },
+
     onEstateChange: function () {
       this._busy(() => this._loadEstate());
     },
 
-    onOperationChange: function () {
-      this._busy(() => this._loadPlans());
+    onOperationSelect: function (event) {
+      const item = event.getParameter("listItem");
+      const op = item && item.getBindingContext("view").getProperty("key");
+      if (op && op !== this._view.getProperty("/operation")) {
+        this._view.setProperty("/operation", op);
+        this._busy(() => this._showOperation());
+      }
     },
 
     onPlanChange: function (event) {
@@ -74,6 +119,7 @@ sap.ui.define([
       this._busy(async () => {
         await this._show(this._service.replan(changes));
         this._view.setProperty("/replan", Object.assign({}, EMPTY_REPLAN));
+        await this._loadPlans(true);
       });
     },
 
@@ -106,45 +152,147 @@ sap.ui.define([
         await this._service.stores(this._view.getProperty("/estate"))));
     },
 
-    onBlockSelect: function (event) {
-      const block = event.getParameter("block");
-      const lines = event.getParameter("lines") || [];
-      const text = lines.length
-        ? lines.map((l) => (l.IsAssigned ? l.CrewCode + " #" + l.SequenceNo : "not reached") + ": " + l.Activity + " " +
-            l.Quantity + " " + l.QtyUnit + ", " + l.ManDays + " man-days, urgency " + l.Urgency + ", deferral " + l.Deferral +
-            " IDR" + (l.LineNote ? " (" + l.LineNote + ")" : "")).join("\n")
-        : "Nothing due on this block in the plan.";
-      MessageBox.information(text, { title: "Block " + block.BlockLabel });
+    onTogglePanel: function () {
+      const open = !this._view.getProperty("/panelOpen");
+      this._view.setProperty("/panelOpen", open);
+      this._insets();
+      this.byId("panel").toggleStyleClass("estCollapsed", !open);
+      this.byId("page").toggleStyleClass("estPanelClosed", !open);
+      // the estate moves into the room the panel leaves, once the panel has slid
+      setTimeout(() => this.byId("map").fit(true), 380);
     },
+
+    onToggleLegend: function () {
+      this._view.setProperty("/legendOpen", !this._view.getProperty("/legendOpen"));
+    },
+
+    onBlockSelect: function (event) {
+      this._select(event.getParameter("block"), event.getParameter("lines") || [], event.getParameter("color"));
+    },
+
+    onBlockClose: function () {
+      this._view.setProperty("/selected", null);
+    },
+
+    // --- the block stripes: settings kept per viewer in the browser
+
+    onStripesSettings: function (event) {
+      this.byId("stripesSettings").openBy(event.getSource());
+    },
+
+    onStripesPreset: function () {
+      const preset = BlockStripes.PRESETS[this._stripes.getProperty("/preset")];
+      if (preset) {
+        Object.keys(preset).forEach((key) => this._stripes.setProperty("/" + key, preset[key]));
+      }
+      this._stripesChanged();
+    },
+
+    onStripesChange: function (event) {
+      const path = event.getParameter("path");
+      if (["rows", "twist", "twistWaves", "wave", "speed", "fontScale"].indexOf(path.replace("/", "")) >= 0) {
+        this._stripes.setProperty("/preset", "custom");
+      }
+      this._stripesChanged();
+    },
+
+    onStripesReset: function () {
+      this._stripes.setData(Object.assign({}, BlockStripes.DEFAULTS, { catalogue: FACTS }));
+      this._stripesChanged();
+    },
+
+    /** The room the plan panel takes from the map: on the right, or below on a narrow window */
+    _insets: function () {
+      const open = this._view.getProperty("/panelOpen");
+      const narrow = window.matchMedia && window.matchMedia(NARROW).matches;
+      this._view.setProperty("/insetRight", open && !narrow ? PANEL_INSET : 0);
+      this._view.setProperty("/insetBottom", open && narrow ? Math.round(window.innerHeight * 0.48) : 0);
+    },
+
+    _stripesChanged: function () {
+      const settings = Object.assign({}, this._stripes.getData());
+      delete settings.catalogue;
+      try {
+        window.localStorage.setItem(STRIPES_KEY, JSON.stringify(settings));
+      } catch (e) {
+        // storage blocked: the settings last for this session only
+      }
+      this.byId("stripes").setConfig(this._stripes.getData());
+    },
+
+    _savedStripes: function () {
+      let saved = {};
+      try {
+        saved = JSON.parse(window.localStorage.getItem(STRIPES_KEY) || "{}") || {};
+      } catch (e) {
+        saved = {};
+      }
+      return Object.assign({}, BlockStripes.DEFAULTS, saved);
+    },
+
+    // --- loading
 
     _loadEstate: async function () {
       const estate = this._view.getProperty("/estate");
+      const record = this._view.getProperty("/estates").find((e) => e.Estate === estate) || {};
+      this._view.setProperty("/subtitle", record.EstateName || estate);
+      this._view.setProperty("/selected", null);
       this._view.setProperty("/blocks", await this._service.blocks(estate));
       this._view.setProperty("/stores", []);
       this._view.setProperty("/handover", null);
       await this._loadPlans();
     },
 
-    /** keepPlan: leave the plan on screen and only refresh the list */
+    /** Plans of every operation, so each tile shows its latest; keepPlan: leave the plan on screen */
     _loadPlans: async function (keepPlan) {
-      const v = this._view.getData();
-      const plans = await this._service.plans(v.estate, v.operation);
-      this._view.setProperty("/plans", plans);
-      if (keepPlan) {
-        return;
+      const estate = this._view.getProperty("/estate");
+      const lists = await Promise.all(OPERATIONS.map((op) => this._service.plans(estate, op.key)));
+      OPERATIONS.forEach((op, i) => {
+        this._plansByOp[op.key] = lists[i].map((plan) => Object.assign(plan, { StatusText: statusOf(plan.Status).text }));
+      });
+      this._refreshOps();
+      if (!keepPlan) {
+        await this._showOperation();
       }
+    },
+
+    _refreshOps: function () {
+      const current = this._view.getProperty("/operation");
+      this._view.setProperty("/ops", OPERATIONS.map((op) => {
+        const latest = (this._plansByOp[op.key] || [])[0];
+        const due = latest ? Number(latest.BlocksDue) || 0 : 0;
+        const assigned = latest ? Number(latest.BlocksAssigned) || 0 : 0;
+        const percent = due ? Math.round(assigned / due * 100) : 0;
+        return Object.assign({}, op, {
+          selected: op.key === current,
+          coverage: latest ? assigned + "/" + due : "–",
+          statusText: latest ? statusOf(latest.Status).text : "No plan",
+          state: latest ? statusOf(latest.Status).state : "None",
+          // share of the due blocks the plan reaches; built from numbers only
+          bar: "<div class=\"estBar estBar--" + (percent >= 60 ? "good" : percent >= 30 ? "fair" : "poor") +
+            "\"><i style=\"width:" + percent + "%\"></i></div>"
+        });
+      }));
+      this._view.setProperty("/plans", this._plansByOp[current] || []);
+    },
+
+    _showOperation: async function () {
+      this._refreshOps();
+      const plans = this._view.getProperty("/plans");
       if (plans.length) {
         await this._show(this._service.load(plans[0].PlanUuid));
       } else {
         this._view.setProperty("/plan", null);
         this._view.setProperty("/planUuid", "");
         this._view.setProperty("/crews", []);
-        this._view.setProperty("/legend", "No plan yet for this operation: press Plan Tomorrow.");
+        this._view.setProperty("/selected", null);
+        this._legend();
       }
     },
 
     _show: async function (planPromise) {
       const plan = await planPromise;
+      plan.StatusText = statusOf(plan.Status).text;
       this._view.setProperty("/plan", plan);
       this._view.setProperty("/planUuid", plan.PlanUuid);
       this._view.setProperty("/answer", null);
@@ -159,9 +307,69 @@ sap.ui.define([
         crew.manDays = Math.round((crew.manDays + Number(l.ManDays)) * 100) / 100;
       });
       this._view.setProperty("/crews", Object.values(crews));
-      const missed = (plan._Lines || []).filter((l) => !l.IsAssigned).length;
-      this._view.setProperty("/legend", "Coloured by crew, numbered in the order the crew works them; " +
-        missed + " due blocks not reached are outlined red; a dashed white outline is not due. Zoom in to see the palms.");
+      this._legend();
+
+      // the block on the card follows the plan on screen
+      const selected = this._view.getProperty("/selected");
+      if (selected) {
+        const block = this._view.getProperty("/blocks").find((b) => b.BlockKey === selected.key);
+        const lines = (plan._Lines || []).filter((l) => l.BlockKey === selected.key);
+        const assigned = lines.find((l) => l.IsAssigned);
+        this._select(block, lines, assigned ? colors[assigned.CrewCode] : lines.length ? "#ff4d4f" : "#ffffff");
+      }
+    },
+
+    _legend: function () {
+      const op = OPERATIONS.find((o) => o.key === this._view.getProperty("/operation"));
+      const plan = this._view.getProperty("/plan");
+      const missed = plan ? (plan._Lines || []).filter((l) => !l.IsAssigned).length : 0;
+      this._view.setProperty("/legendTitle", op.text + (plan
+        ? " · " + this._view.getProperty("/crews").length + " crews · " + missed + " not reached"
+        : " · no plan"));
+    },
+
+    /** The block card: its stripes and its plan lines */
+    _select: function (block, lines, color) {
+      if (!block) {
+        this._view.setProperty("/selected", null);
+        return;
+      }
+      const assigned = lines.find((l) => l.IsAssigned);
+      const line = assigned || lines[0];
+      const state = assigned ? assigned.CrewCode + " · #" + assigned.SequenceNo + " in its round"
+        : line ? "Due, not reached" : "Nothing due";
+      const facts = [
+        { key: "block", text: "Block " + block.BlockLabel },
+        { key: "crew", text: assigned ? assigned.CrewCode + " #" + assigned.SequenceNo : line ? "Not reached" : "Nothing due" }
+      ];
+      if (line) {
+        facts.push(
+          { key: "work", text: line.Activity + " " + num(line.Quantity) + " " + line.QtyUnit },
+          { key: "mandays", text: num(line.ManDays) + " man-days" },
+          { key: "urgency", text: "Urgency " + num(line.Urgency, 2) },
+          { key: "deferral", text: "Waiting costs " + num(line.Deferral, 0) + " IDR" },
+          { key: "travel", text: num(line.TravelKm) + " km travel" });
+      }
+      facts.push(
+        { key: "area", text: num(block.PlantedHa) + " ha · " + num(block.Palms, 0) + " palms" },
+        { key: "planted", text: "Planted " + (block.PlantedYear || "-") },
+        { key: "road", text: "Road " + (block.RoadCondition || "-") },
+        { key: "division", text: "Division " + (block.Division || "-") });
+
+      this._view.setProperty("/selected", {
+        key: block.BlockKey,
+        label: block.BlockLabel,
+        color: color || "#3d8b5a",
+        state: state,
+        facts: facts,
+        rows: lines.map((l) => ({
+          title: (l.IsAssigned ? l.CrewCode + " #" + l.SequenceNo : "Not reached") + ": " + l.Activity + " " +
+            num(l.Quantity) + " " + l.QtyUnit,
+          detail: num(l.ManDays) + " man-days, urgency " + num(l.Urgency, 2) + ", waiting costs " + num(l.Deferral, 0) + " IDR" +
+            (l.LineNote ? " (" + l.LineNote + ")" : ""),
+          state: l.IsAssigned ? "Success" : "Error"
+        }))
+      });
     },
 
     _busy: async function (work) {

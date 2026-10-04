@@ -1,8 +1,200 @@
-.estMap { width: 100%; border: 1px solid var(--sapList_BorderColor); border-radius: 0.25rem; background: var(--sapBaseColor); }
-.estMuted { color: var(--sapContent_LabelColor); font-size: 0.875rem; }
-.estDocument { font-family: var(--sapFontMonospaceFamily, monospace); white-space: pre-wrap; }
-.estBody { padding-top: 0.5rem; }
-.estBody > .sapMFlexItem { min-width: 0; }
-.estSeq { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px;
-  border-radius: 11px; background: rgba(0, 0, 0, 0.55); color: #ffffff; font-weight: bold; font-size: 12px; }
-.estMap .leaflet-tooltip { font-size: 12px; }
+/* Estate Command: the map fills the page, the rest floats over it on frosted glass.
+   Colours come from the theme parameters, so light and dark themes both read. */
+
+.estPage {
+  --estGap: 16px;
+  --estPanelWidth: 440px;
+  --estGlassBg: rgba(255, 255, 255, 0.62);
+  --estGlassBorder: rgba(255, 255, 255, 0.45);
+  --estGlassShadow: 0 12px 32px rgba(4, 16, 10, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  --estRadius: 18px;
+}
+@supports (background: color-mix(in srgb, red 50%, transparent)) {
+  .estPage {
+    --estGlassBg: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 64%, transparent);
+    --estGlassBorder: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 45%, transparent);
+  }
+}
+.estPage > section,
+.estPage .sapMPageEnableScrolling { background: #0b1410; overflow: hidden; }
+
+/* --- glass */
+.estGlass {
+  background: var(--estGlassBg);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--estGlassBorder);
+  border-radius: var(--estRadius);
+  box-shadow: var(--estGlassShadow);
+  color: var(--sapTextColor);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .estGlass { background: var(--sapGroup_ContentBackground, #fff); }
+}
+.estMuted { color: var(--sapContent_LabelColor); font-size: 0.8125rem; }
+.estDocument { font-family: var(--sapFontMonospaceFamily, monospace); white-space: pre-wrap; font-size: 0.8125rem; }
+
+/* --- map */
+.estMapFull { position: absolute; inset: 0; z-index: 0; }
+.estMap { width: 100%; background: #0b1410; font-family: var(--sapFontFamily); }
+.estMap .estTiles { filter: saturate(1.15) contrast(1.06) brightness(0.86); transition: filter 0.4s; }
+.estMap[data-basemap="terrain"] .estTiles { filter: saturate(0.9) brightness(0.95); }
+.estMap[data-basemap="dark"] .estTiles { filter: none; }
+.estMap::after { /* vignette: the eye goes to the middle, the glass reads at the edges */
+  content: ""; position: absolute; inset: 0; z-index: 450; pointer-events: none;
+  background: radial-gradient(ellipse at 45% 50%, transparent 55%, rgba(0, 10, 5, 0.45) 100%);
+}
+
+.estBlock { transition: fill-opacity 0.2s ease, stroke-width 0.2s ease; cursor: pointer; }
+.estBlock--assigned { filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.35)); }
+.estBlock--missed { animation: estPulse 2.4s ease-in-out infinite; }
+.estBlock--selected { stroke: #ffffff !important; stroke-width: 3.5px !important; stroke-dasharray: none !important;
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.85)); }
+@keyframes estPulse { 0%, 100% { stroke-opacity: 0.95; } 50% { stroke-opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .estBlock--missed { animation: none; } }
+
+.estPin { display: flex; flex-direction: column; align-items: center; gap: 3px; pointer-events: none;
+  transform: translate(-50%, -50%); width: max-content; }
+.estPinSeq { display: flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; padding: 0 6px;
+  box-sizing: border-box; border-radius: 12px; color: #08130d; font-weight: 700; font-size: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.95); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45); }
+.estPinLabel { display: none; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; color: #fff;
+  background: rgba(8, 19, 13, 0.62); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  letter-spacing: 0.02em; }
+.estNear .estPinLabel { display: block; }
+
+.estMap .leaflet-right { right: var(--estInsetRight, 0px); transition: right 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.estMap .leaflet-bottom { bottom: var(--estInsetBottom, 0px); transition: bottom 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.estMap .leaflet-bottom.leaflet-right { display: flex; flex-direction: column-reverse; align-items: flex-end; }
+.estMapBar { display: flex; flex-direction: column; overflow: hidden; margin: 0 var(--estGap) 8px 0 !important;
+  border-radius: 14px; background: rgba(12, 22, 17, 0.55); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.18); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); }
+.estMapBtn { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 0;
+  background: transparent; color: #fff; cursor: pointer; transition: background 0.15s; }
+.estMapBtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.estMapBtn + .estMapBtn { border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.estMapBtn:hover { background: rgba(255, 255, 255, 0.14); }
+.estMapBtn:focus-visible { outline: 2px solid var(--sapContent_FocusColor, #0070f2); outline-offset: -2px; }
+.estMap .leaflet-control-scale { margin: 0 var(--estGap) 8px 0 !important; }
+.estMap .leaflet-control-scale-line { background: rgba(12, 22, 17, 0.5); color: #fff; border-color: rgba(255, 255, 255, 0.7);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.estMap .leaflet-control-attribution { background: rgba(12, 22, 17, 0.45); color: rgba(255, 255, 255, 0.75);
+  border-radius: 8px 0 0 0; font-size: 10px; }
+.estMap .leaflet-control-attribution a { color: rgba(255, 255, 255, 0.9); }
+
+.estTip.leaflet-tooltip { background: rgba(10, 20, 15, 0.78); color: #fff; border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px; padding: 6px 10px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font-family: var(--sapFontFamily); }
+.estTip.leaflet-tooltip-top::before { border-top-color: rgba(10, 20, 15, 0.78); }
+.estTipTitle { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.estTipTitle i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.estTipText { font-size: 12px; opacity: 0.8; }
+
+/* --- top bar */
+.estTopBar { position: absolute; top: var(--estGap); left: var(--estGap); z-index: 10; display: flex; gap: 12px;
+  padding: 8px 10px 8px 14px; max-width: calc(100% - var(--estPanelWidth) - 4 * var(--estGap)); }
+.estBrandIcon { font-size: 1.5rem; color: var(--sapBrandColor); }
+.estBrand { display: flex; flex-direction: column; min-width: 0; margin-right: 6px; }
+.estBrand .sapMTitle { font-size: 1rem; font-weight: 700; }
+
+/* --- legend */
+.estLegend { position: absolute; top: calc(var(--estGap) + 68px); left: var(--estGap); z-index: 10; width: 300px;
+  padding: 6px 8px 8px 14px; display: flex; flex-direction: column; }
+.estLegendHead { display: flex; gap: 8px; }
+.estLegendHead .sapMTitle { font-size: 0.8125rem; }
+.estChips { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 8px; }
+.estChip { display: flex; gap: 6px; padding: 3px 9px; border-radius: 999px; font-size: 0.75rem;
+  background: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 55%, transparent); }
+.estChip .sapMText { font-size: 0.75rem; }
+.estKeys { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.75rem; color: var(--sapContent_LabelColor); }
+.estKeys span { display: inline-flex; align-items: center; gap: 6px; }
+.estKey { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 11px; border-radius: 3px;
+  font-style: normal; }
+.estKey--missed { border: 2px dashed #ff4d4f; background: rgba(255, 77, 79, 0.15); }
+.estKey--idle { border: 1.5px dotted var(--sapContent_LabelColor); }
+.estKey--seq { width: 16px; height: 16px; border-radius: 50%; background: #80ed99; color: #08130d; font-size: 10px;
+  font-weight: 700; border: 1.5px solid #fff; }
+
+/* --- block card */
+.estBlockCard { position: absolute; left: var(--estGap); bottom: var(--estGap); z-index: 11; width: 420px;
+  max-width: calc(100% - 2 * var(--estGap)); max-height: calc(100% - 200px); display: flex; flex-direction: column;
+  overflow: hidden; animation: estRise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1); }
+@keyframes estRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.estCardHead { display: flex; gap: 10px; padding: 10px 6px 8px 16px; }
+.estCardTitle { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.estStripes { position: relative; margin: 0 12px; border-radius: 12px; overflow: hidden; background: #08130d;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
+.estStripes canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.estCardLines { overflow: auto; padding: 4px 4px 8px; }
+.estLine { display: flex; flex-direction: column; gap: 2px; padding: 6px 4px; }
+
+/* --- plan panel */
+.estPanel { position: absolute; top: var(--estGap); right: var(--estGap); bottom: var(--estGap); z-index: 12;
+  width: var(--estPanelWidth); max-width: calc(100% - 2 * var(--estGap)); display: flex; flex-direction: column;
+  overflow: hidden; transition: transform 0.38s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease; }
+.estPanel.estCollapsed { transform: translateX(calc(100% + 2 * var(--estGap))); opacity: 0; pointer-events: none; }
+.estPanelHandle.sapMBtn { position: absolute; top: var(--estGap); right: var(--estGap); z-index: 12; height: auto; padding: 0; }
+.estPanelHandle .sapMBtnInner { height: 2.75rem; border-radius: 999px; padding: 0 1rem; border: 1px solid var(--estGlassBorder);
+  background: var(--estGlassBg) !important; -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: var(--estGlassShadow); }
+.estPanelHead { display: flex; align-items: center; justify-content: space-between; padding: 10px 8px 2px 18px; }
+.estPanelHead .sapMTitle { font-size: 1.125rem; font-weight: 700; }
+
+.estOps { padding: 6px 12px 4px; }
+.estOps .sapMListUl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.estOps .sapMLIB { border-radius: 14px; border: 1px solid transparent; padding: 0; min-height: 0; height: auto;
+  background: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 45%, transparent) !important;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s; }
+.estOps .sapMLIB:hover { transform: translateY(-1px); }
+.estOps .sapMLIB.sapMLIBSelected { border-color: var(--sapBrandColor);
+  background: color-mix(in srgb, var(--sapBrandColor) 14%, var(--sapGroup_ContentBackground, #fff)) !important; }
+.estOps .sapMLIBFocusable:focus { outline-offset: -2px; }
+.estOp { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px 9px; width: 100%; box-sizing: border-box; }
+.estOpHead { display: flex; gap: 6px; font-weight: 600; }
+.estOpHead .sapMText { font-weight: 600; font-size: 0.8125rem; }
+.estOpValue.sapMText { margin-top: 2px; font-size: 1.125rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.estOpStatus { min-height: 1rem; }
+.estOpStatus .sapMObjStatusText { font-size: 0.6875rem; }
+.estBar { height: 4px; margin-top: 4px; border-radius: 2px; overflow: hidden;
+  background: color-mix(in srgb, var(--sapContent_LabelColor) 22%, transparent); }
+.estBar i { display: block; height: 100%; border-radius: 2px; transition: width 0.4s ease; }
+.estBar--good i { background: var(--sapPositiveColor, #2b7c2b); }
+.estBar--fair i { background: var(--sapCriticalColor, #e76500); }
+.estBar--poor i { background: var(--sapNegativeColor, #d20a0a); }
+
+.estPlanRow { display: flex; gap: 8px; padding: 6px 12px 10px; }
+.estGrow { flex: 1; min-width: 0; }
+.estPanelScroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0 4px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--sapList_BorderColor) 60%, transparent); }
+.estEmpty { padding: 24px 16px; color: var(--sapContent_LabelColor); }
+.estSummary { display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 4px; }
+.estSummary > .sapMTitle { font-size: 1rem; line-height: 1.35; }
+.estMeta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.estKpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.estKpi { display: flex; flex-direction: column; padding: 8px 10px; border-radius: 12px;
+  background: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 50%, transparent); }
+.estKpiLabel.sapMText { font-size: 0.6875rem; color: var(--sapContent_LabelColor); text-transform: uppercase; letter-spacing: 0.04em; }
+.estKpiValue.sapMText { font-size: 1.125rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.estTabs .sapMITH { box-shadow: none !important; padding: 0 4px; }
+.estTabs .sapMITBContainerContent, .estTabs .sapMITBContent { background: transparent !important; border: 0 !important; }
+.estSection { display: flex; flex-direction: column; gap: 10px; padding: 10px 8px; }
+.estActions { display: flex; flex-wrap: wrap; gap: 6px; }
+.estCrew { display: flex; gap: 10px; padding: 6px 4px; }
+.estFold .sapMPanelHdr, .estFold .sapMPanelWrappingDiv { background: transparent !important; }
+.estForm .sapUiFormResGrid { padding: 0; }
+.estTable .sapMListTblHeader, .estTable .sapMListTblRow, .estTable .sapMListTblHeaderCell,
+.estCrews .sapMLIB, .estCardLines .sapMLIB, .estSection .sapMLIB { background: transparent !important; }
+
+/* --- stripes settings */
+.estPop .sapMPopoverCont { background: var(--estGlassBg); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+
+/* narrow windows: the panel takes the lower half, the map the upper */
+@media (max-width: 900px) {
+  .estPage { --estPanelWidth: calc(100% - 2 * var(--estGap)); }
+  .estPanel { top: 52%; }
+  .estPanel.estCollapsed { transform: translateY(calc(100% + 2 * var(--estGap))); }
+  .estTopBar { max-width: calc(100% - 2 * var(--estGap)); }
+  .estLegend { display: none; }
+  .estBlockCard { bottom: auto; top: calc(var(--estGap) + 68px); max-height: calc(52% - 100px); }
+}

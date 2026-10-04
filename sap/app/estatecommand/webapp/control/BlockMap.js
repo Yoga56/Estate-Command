@@ -10,14 +10,28 @@ sap.ui.define([
 ], function (Control, ResizeHandler, L) {
   "use strict";
 
-  const PALETTE = ["#1f77b4", "#2ca02c", "#9467bd", "#ff7f0e", "#e377c2", "#17becf", "#bcbd22", "#8c564b",
-    "#393b79", "#637939", "#7b4173", "#3182bd"];
-  // Esri World Imagery: satellite tiles without a key; zoomed in, the palms are visible
-  const IMAGERY = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-  const PLACES = "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}";
+  const PALETTE = ["#4cc9f0", "#80ed99", "#b388ff", "#ffb703", "#ff70a6", "#2ec4b6", "#e9ff70", "#ff9f1c",
+    "#70a1ff", "#a3e635", "#f472b6", "#38bdf8"];
+  // Esri basemaps: no key, one host (server.arcgisonline.com) for the content security allowlist
+  const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/";
+  const BASEMAPS = {
+    satellite: { title: "Satellite", tiles: ["World_Imagery", "Reference/World_Boundaries_and_Places"], native: 18 },
+    terrain: { title: "Terrain", tiles: ["World_Topo_Map"], native: 18 },
+    dark: { title: "Dark", tiles: ["Canvas/World_Dark_Gray_Base", "Canvas/World_Dark_Gray_Reference"], native: 16 }
+  };
+  const BASEMAP_ORDER = ["satellite", "terrain", "dark"];
+  const svg = (paths) => "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\">" + paths + "</svg>";
+  const ICONS = {
+    plus: svg("<path d=\"M12 5v14M5 12h14\"/>"),
+    minus: svg("<path d=\"M5 12h14\"/>"),
+    fit: svg("<path d=\"M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5\"/>"),
+    layers: svg("<path d=\"M12 3 2 8l10 5 10-5-10-5z\"/><path d=\"m2 16 10 5 10-5\"/><path d=\"m2 12 10 5 10-5\"/>")
+  };
   // a block without a polygon is drawn as a rectangle this many degrees around its centroid
   const HALF_LON = 0.00135;
   const HALF_LAT = 0.0045;
+  // block labels show from this zoom on
+  const NEAR_ZOOM = 15;
 
   /** "lon lat,lon lat,..." to Leaflet [[lat, lon], ...] */
   const parseRing = (text) => (text || "").split(",")
@@ -25,14 +39,39 @@ sap.ui.define([
     .filter((point) => point.length === 2 && !isNaN(point[0]) && !isNaN(point[1]))
     .map((point) => [point[1], point[0]]);
 
+  const escape = (text) => String(text == null ? "" : text)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  /** A row of map buttons in the glass style: [{ icon (text), title, press }] */
+  const ButtonBar = L.Control.extend({
+    onAdd: function () {
+      const bar = L.DomUtil.create("div", "estMapBar");
+      L.DomEvent.disableClickPropagation(bar);
+      this.options.buttons.forEach((button) => {
+        const element = L.DomUtil.create("button", "estMapBtn", bar);
+        element.type = "button";
+        element.title = button.title;
+        element.setAttribute("aria-label", button.title);
+        element.innerHTML = button.icon;
+        L.DomEvent.on(element, "click", (event) => {
+          L.DomEvent.stop(event);
+          button.press(element);
+        });
+      });
+      return bar;
+    }
+  });
+
   /**
-   * The estate's blocks on satellite imagery (Leaflet). A block is filled with the colour of
-   * the crew assigned to it and numbered in the order the crew works it; a block that is due
-   * but not reached is outlined red; a block with nothing due is outlined white and left clear,
-   * so the palms show through.
+   * The estate's blocks on imagery (Leaflet), filling its container. A block is filled with the
+   * colour of the crew assigned to it and carries the order the crew works it; a block that is due
+   * but not reached is outlined red and pulses; a block with nothing due is a faint dashed outline,
+   * so the palms show through. Zoomed in, every block shows its label.
    *
    * blocks: [{ BlockKey, BlockLabel, Geometry, CentroidLon, CentroidLat }]
    * lines:  the plan's lines [{ BlockKey, CrewCode, IsAssigned, SequenceNo, ... }]
+   * selectedBlock: BlockKey to ring
+   * insetRight, insetBottom: px covered by a panel; fitting and the map buttons keep clear of them
    * Fires "select" with the block and its plan lines when a block is clicked.
    */
   return Control.extend("zestate.command.control.BlockMap", {
@@ -40,7 +79,11 @@ sap.ui.define([
       properties: {
         blocks: { type: "object", defaultValue: [] },
         lines: { type: "object", defaultValue: [] },
-        height: { type: "int", defaultValue: 560 }
+        selectedBlock: { type: "string", defaultValue: "" },
+        insetRight: { type: "int", defaultValue: 0 },
+        insetTop: { type: "int", defaultValue: 0 },
+        insetBottom: { type: "int", defaultValue: 0 },
+        height: { type: "sap.ui.core.CSSSize", defaultValue: "100%" }
       },
       events: {
         select: { parameters: { block: { type: "object" }, lines: { type: "object" } } }
@@ -50,7 +93,9 @@ sap.ui.define([
     renderer: {
       apiVersion: 2,
       render: function (rm, control) {
-        rm.openStart("div", control).class("estMap").style("height", control.getHeight() + "px").openEnd().close("div");
+        rm.openStart("div", control).class("estMap").style("height", control.getHeight())
+          .style("--estInsetRight", control.getInsetRight() + "px")
+          .style("--estInsetBottom", control.getInsetBottom() + "px").openEnd().close("div");
       }
     },
 
@@ -68,6 +113,28 @@ sap.ui.define([
       return this;
     },
 
+    setSelectedBlock: function (key) {
+      this.setProperty("selectedBlock", key || "", true);
+      this._highlight();
+      return this;
+    },
+
+    setInsetRight: function (px) {
+      this.setProperty("insetRight", px, true);
+      if (this.getDomRef()) {
+        this.getDomRef().style.setProperty("--estInsetRight", px + "px");
+      }
+      return this;
+    },
+
+    setInsetBottom: function (px) {
+      this.setProperty("insetBottom", px, true);
+      if (this.getDomRef()) {
+        this.getDomRef().style.setProperty("--estInsetBottom", px + "px");
+      }
+      return this;
+    },
+
     onBeforeRendering: function () {
       this._deregister();
     },
@@ -79,15 +146,7 @@ sap.ui.define([
         this._map = null;
       }
       if (!this._map) {
-        this._map = L.map(dom, { zoomControl: true, attributionControl: true, maxZoom: 19 });
-        L.tileLayer(IMAGERY, {
-          maxZoom: 19,
-          maxNativeZoom: 18,
-          attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics"
-        }).addTo(this._map);
-        L.tileLayer(PLACES, { maxZoom: 19, maxNativeZoom: 18, opacity: 0.8 }).addTo(this._map);
-        this._layer = L.layerGroup().addTo(this._map);
-        this._fitted = false;
+        this._createMap(dom);
       }
       this._draw();
       this._resizeId = ResizeHandler.register(this, () => this._map && this._map.invalidateSize());
@@ -108,6 +167,65 @@ sap.ui.define([
       }
     },
 
+    _createMap: function (dom) {
+      this._map = L.map(dom, { zoomControl: false, attributionControl: true, maxZoom: 19, zoomSnap: 0.25,
+        wheelPxPerZoomLevel: 90 });
+      this._map.attributionControl.setPrefix(false);
+      this._basemap = null;
+      this._setBasemap("satellite");
+      this._layer = L.layerGroup().addTo(this._map);
+      this._fitted = false;
+
+      L.control.scale({ position: "bottomright", imperial: false, maxWidth: 110 }).addTo(this._map);
+      new ButtonBar({
+        position: "bottomright",
+        buttons: [
+          { icon: ICONS.plus, title: "Zoom in", press: () => this._map.zoomIn() },
+          { icon: ICONS.minus, title: "Zoom out", press: () => this._map.zoomOut() },
+          { icon: ICONS.fit, title: "Fit the estate", press: () => this.fit(true) },
+          { icon: ICONS.layers, title: "Basemap: satellite, terrain, dark", press: (button) => {
+            const next = BASEMAP_ORDER[(BASEMAP_ORDER.indexOf(this._basemapKey) + 1) % BASEMAP_ORDER.length];
+            this._setBasemap(next);
+            button.title = "Basemap: " + BASEMAPS[next].title;
+          } }
+        ]
+      }).addTo(this._map);
+
+      const near = () => dom.classList.toggle("estNear", this._map.getZoom() >= NEAR_ZOOM);
+      this._map.on("zoomend", near);
+      near();
+    },
+
+    _setBasemap: function (key) {
+      if (this._basemap) {
+        this._map.removeLayer(this._basemap);
+      }
+      const basemap = BASEMAPS[key];
+      this._basemap = L.layerGroup(basemap.tiles.map((service, i) => L.tileLayer(ESRI + service + "/MapServer/tile/{z}/{y}/{x}", {
+        maxZoom: 19,
+        maxNativeZoom: basemap.native,
+        opacity: i ? 0.85 : 1,
+        className: i ? "estTilesLabels" : "estTiles",
+        attribution: i ? "" : "Tiles &copy; Esri, Maxar, Earthstar Geographics"
+      }))).addTo(this._map);
+      this._basemapKey = key;
+      this.getDomRef().dataset.basemap = key;
+    },
+
+    /** Fits the estate into the part of the map no panel covers */
+    fit: function (animate) {
+      if (!this._map || !this._bounds || !this._bounds.isValid()) {
+        return;
+      }
+      const options = { paddingTopLeft: [32, this.getInsetTop() + 32], paddingBottomRight: [this.getInsetRight() + 32, this.getInsetBottom() + 40],
+        maxZoom: 17 };
+      if (animate) {
+        this._map.flyToBounds(this._bounds, Object.assign({ duration: 0.8 }, options));
+      } else {
+        this._map.fitBounds(this._bounds, options);
+      }
+    },
+
     /** Crew code to colour, stable for the plan on screen */
     crewColors: function () {
       const crews = [...new Set((this.getLines() || []).filter((l) => l.IsAssigned).map((l) => l.CrewCode))].sort();
@@ -120,6 +238,7 @@ sap.ui.define([
       }
       this._map.invalidateSize();
       this._layer.clearLayers();
+      this._polygons = {};
 
       const byBlock = {};
       (this.getLines() || []).forEach((line) => {
@@ -141,34 +260,72 @@ sap.ui.define([
         }
         const lines = byBlock[block.BlockKey] || [];
         const assigned = lines.find((l) => l.IsAssigned);
-        const missed = lines.find((l) => !l.IsAssigned);
+        const missed = !assigned && lines.length > 0;
+        const color = assigned ? colors[assigned.CrewCode] : missed ? "#ff4d4f" : "#ffffff";
+        const kind = assigned ? "assigned" : missed ? "missed" : "idle";
         const style = assigned
-          ? { color: "#ffffff", weight: 1.5, fillColor: colors[assigned.CrewCode], fillOpacity: 0.55 }
+          ? { color: color, weight: 1.5, opacity: 0.95, fillColor: color, fillOpacity: 0.42 }
           : missed
-            ? { color: "#e00000", weight: 2.5, fillColor: "#e00000", fillOpacity: 0.15 }
-            : { color: "#ffffff", weight: 1, fillOpacity: 0, dashArray: "4 3" };
+            ? { color: color, weight: 2, opacity: 0.95, fillColor: color, fillOpacity: 0.12, dashArray: "6 4" }
+            : { color: color, weight: 1, opacity: 0.55, fillColor: "#ffffff", fillOpacity: 0.02, dashArray: "2 5" };
 
-        const polygon = L.polygon(ring, style)
-          .bindTooltip(block.BlockLabel + (assigned ? " - " + assigned.CrewCode + " #" + assigned.SequenceNo
-            : missed ? " - due, not reached" : " - not due"), { sticky: true })
-          .on("click", () => this.fireSelect({ block: block, lines: lines }));
+        const polygon = L.polygon(ring, Object.assign({ className: "estBlock estBlock--" + kind }, style))
+          .bindTooltip(this._tooltip(block, assigned, missed, color), {
+            sticky: true, direction: "top", offset: [0, -10], className: "estTip", opacity: 1
+          })
+          .on("mouseover", () => polygon.setStyle({ weight: style.weight + 1.5, fillOpacity: style.fillOpacity + 0.18 }))
+          .on("mouseout", () => polygon.setStyle(style))
+          .on("click", () => this.fireSelect({ block: block, lines: lines, color: color }));
         this._layer.addLayer(polygon);
+        this._polygons[block.BlockKey] = polygon;
         bounds.extend(polygon.getBounds());
 
-        if (assigned) {
-          this._layer.addLayer(L.marker(polygon.getBounds().getCenter(), {
-            interactive: false,
-            icon: L.divIcon({ className: "estSeq", html: String(assigned.SequenceNo), iconSize: [22, 22] })
-          }));
-        }
+        const center = polygon.getBounds().getCenter();
+        const badge = assigned
+          ? "<span class=\"estPinSeq\" style=\"background:" + color + "\">" + escape(assigned.SequenceNo) + "</span>"
+          : "";
+        this._layer.addLayer(L.marker(center, {
+          interactive: false,
+          keyboard: false,
+          icon: L.divIcon({
+            className: "estPin estPin--" + kind,
+            html: badge + "<span class=\"estPinLabel\">" + escape(block.BlockLabel) + "</span>",
+            iconSize: null
+          })
+        }));
       });
 
+      this._bounds = bounds;
       if (!this._fitted && bounds.isValid()) {
-        this._map.fitBounds(bounds, { padding: [16, 16] });
+        this.fit(false);
         this._fitted = true;
       } else if (!bounds.isValid()) {
         // nothing to show yet: the estates of the sample sit in Riau
-        this._map.setView([1.60, 100.20], 12);
+        this._map.setView([1.60, 100.20], 13);
+      }
+      this._highlight();
+    },
+
+    _tooltip: function (block, assigned, missed, color) {
+      const state = assigned ? escape(assigned.CrewCode) + " &middot; #" + escape(assigned.SequenceNo)
+        : missed ? "due, not reached" : "nothing due";
+      return "<div class=\"estTipTitle\"><i style=\"background:" + color + "\"></i>Block " + escape(block.BlockLabel) +
+        "</div><div class=\"estTipText\">" + state + "</div>";
+    },
+
+    _highlight: function () {
+      if (!this._polygons) {
+        return;
+      }
+      const selected = this.getSelectedBlock();
+      Object.keys(this._polygons).forEach((key) => {
+        const element = this._polygons[key].getElement();
+        if (element) {
+          element.classList.toggle("estBlock--selected", key === selected);
+        }
+      });
+      if (selected && this._polygons[selected]) {
+        this._polygons[selected].bringToFront();
       }
     }
   });

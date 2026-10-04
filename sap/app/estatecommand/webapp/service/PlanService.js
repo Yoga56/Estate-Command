@@ -26,7 +26,7 @@ sap.ui.define([
     /** The estate's blocks with their polygon ("lon lat,lon lat,...") and centroid. */
     blocks: async function (estate) {
       return this._list("/Block", [new Filter("Estate", FilterOperator.EQ, estate)], [new Sorter("BlockKey")], 2000,
-        { $select: "BlockKey,BlockLabel,Division,PlantedHa,Palms,RoadCondition,CentroidLon,CentroidLat,Geometry" });
+        { $select: "BlockKey,BlockLabel,Division,PlantedHa,Palms,PlantedYear,RoadCondition,CentroidLon,CentroidLat,Geometry" });
     },
 
     /** Plans of one estate and operation, newest first, without their lines. */
@@ -34,7 +34,7 @@ sap.ui.define([
       return this._list("/Plan",
         [new Filter("Estate", FilterOperator.EQ, estate), new Filter("Operation", FilterOperator.EQ, operation)],
         [new Sorter("PlanDate", true), new Sorter("CreatedAt", true)], 30,
-        { $select: "PlanUuid,PlanDate,Status,Headline,ModelId,CreatedAt" });
+        { $select: "PlanUuid,PlanDate,Status,Headline,ModelId,BlocksDue,BlocksAssigned,CreatedAt" });
     },
 
     /** One plan with its lines; it becomes the plan the actions work on. */

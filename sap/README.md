@@ -216,7 +216,17 @@ comes from outside the system) over Esri World Imagery tiles. Sample estate `SMP
 planted grid in Rokan Hulu, Riau: 40 blocks of 300 m by 1,000 m; zoom in and the palms show
 inside the rectangles. If the launchpad blocks the tiles (blank background, blocks still drawn),
 allow `https://server.arcgisonline.com` for images in client 100's *Maintain Protection
-Allowlists* app (content security policy).
+Allowlists* app (content security policy). The three basemaps (satellite, terrain, dark; layers
+button on the map) all come from that host.
+
+The map fills the page; the plan, the legend and the block card float over it on frosted glass
+(`backdrop-filter`) and follow the user's theme (Horizon light or dark). The plan panel collapses to
+the *Plan* handle; the operation tiles at its top show the latest plan of each operation. A block
+clicked on the map opens its card: the block's facts run as kinetic type on twisting stripes
+(`control/BlockStripes.js`, canvas 2D, after Space Type Generator's *_v.stripes*). The gear on the
+card sets preset, colours, which facts, stripes, twist, ripple, speed and text size; the settings
+stay in the browser (`localStorage`) per user. Users who ask the system for reduced motion get a
+still frame.
 
 ---
 
