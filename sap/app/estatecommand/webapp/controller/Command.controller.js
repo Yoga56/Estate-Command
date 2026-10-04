@@ -32,6 +32,7 @@ sap.ui.define([
   const PANEL_WIDTH = 440; // default, px; the user drags it wider or narrower
   const PANEL_KEY = "zestate.command.panelWidth";
   const NARROW = "(max-width: 900px)"; // the panel becomes a sheet over the lower half (style.css)
+  const PHONE = "(max-width: 600px)";
 
   /** The message an OData failure carries, else the error text. */
   const messageOf = (error) => (error && error.error && error.error.message) || (error && error.message) || String(error);
@@ -252,7 +253,9 @@ sap.ui.define([
       const open = this._view.getProperty("/panelOpen");
       const narrow = window.matchMedia && window.matchMedia(NARROW).matches;
       this._view.setProperty("/insetRight", open && !narrow ? this._panelWidth + 32 : 0);
-      this._view.setProperty("/insetBottom", open && narrow ? Math.round(window.innerHeight * 0.48) : 0);
+      // the sheet covers the lower 48 % of a narrow window, 60 % of a phone (style.css)
+      const phone = window.matchMedia && window.matchMedia(PHONE).matches;
+      this._view.setProperty("/insetBottom", open && narrow ? Math.round(window.innerHeight * (phone ? 0.6 : 0.48)) : 0);
     },
 
     // --- the plan panel's width: drag its left edge, arrow keys on the edge, double-click to reset

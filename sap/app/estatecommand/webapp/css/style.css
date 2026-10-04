@@ -368,3 +368,32 @@ html.estApp .sapMPopover .sapMLIBFocusable:focus { outline-offset: -2px; }
   .estBlockCard { bottom: auto; top: calc(var(--estGap) + 68px); max-height: calc(52% - 100px); }
   .estStripesStage { bottom: 48%; height: 30%; min-height: 200px; width: 55%; }
 }
+
+/* phones: a compact top bar, the plan as a taller sheet, the map above it */
+@media (max-width: 600px) {
+  .estPage { --estGap: 10px; }
+  .estTopBar { gap: 8px; padding: 6px 6px 6px 10px; }
+  .estBrand .estMuted { display: none; }
+  .estBrand .sapMTitle { font-size: 0.9375rem; }
+  .estTopBar { right: var(--estGap); max-width: none; }
+  .estBrand { flex: 0 0 auto; }
+  .estTopBar .sapMSlt { width: auto !important; flex: 1 1 8rem; min-width: 8rem; }
+  .estPanel { top: 40%; }
+  .estPanelHead { padding: 8px 6px 0 14px; }
+  .estPanelHead .sapMTitle { font-size: 1rem; }
+  .estOps { padding: 4px 8px; }
+  .estOps .sapMListUl { gap: 6px; }
+  .estOp { padding: 6px 7px 7px; }
+  .estOpHead .sapMText { font-size: 0.75rem; }
+  .estOpValue.sapMText { font-size: 1rem; }
+  .estOpStatus { display: none; }
+  .estPlanRow { padding: 4px 8px 8px; }
+  .estPlanRow .sapMBtn .sapMBtnContent { display: none; }
+  .estFireStrip.sapMMsgStrip { margin: 0 8px 8px; }
+  .estKpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .estGrid .estGridRow { gap: 6px; padding: 6px 8px; }
+  .estGrid .sapMText { font-size: 0.8125rem; }
+  .estPage .estPanelHandle.sapMBtn { top: auto; bottom: calc(var(--estGap) + 36px); right: auto; left: var(--estGap); }
+  .estBlockCard { top: calc(var(--estGap) + 60px); max-height: calc(60% - 140px); }
+  .estStripesStage { bottom: 60%; height: 26%; min-height: 160px; width: 75%; min-width: 0; }
+}

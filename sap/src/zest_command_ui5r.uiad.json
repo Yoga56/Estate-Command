@@ -18,7 +18,8 @@
     "semanticObject": "EstatePlan",
     "action": "display",
     "desktop": true,
-    "tablet": true
+    "tablet": true,
+    "phone": true
   },
   "tiles": [
     {

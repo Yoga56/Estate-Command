@@ -97,7 +97,7 @@
                   items="{ path: 'view>/plans', templateShareable: false }" selectedKey="{view>/planUuid}">
             <core:Item key="{view>PlanUuid}" text="{view>PlanDate} &#183; {view>StatusText} &#183; {view>ModelId}"/>
           </Select>
-          <Button text="Plan Tomorrow" type="Emphasized" icon="sap-icon://create" press=".onGenerate"/>
+          <Button text="Plan Tomorrow" tooltip="Plan Tomorrow" type="Emphasized" icon="sap-icon://create" press=".onGenerate"/>
         </HBox>
 
         <!-- NASA FIRMS: fire hotspots around the estate, whether or not there is a plan -->
