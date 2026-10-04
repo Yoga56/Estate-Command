@@ -20,6 +20,12 @@
       <TYPE>text/plain</TYPE>
       <TITLE>Source Content</TITLE>
      </item>
+     <item>
+      <HREF>./zr_est_import/source/main</HREF>
+      <REL>http://www.sap.com/adt/relations/source</REL>
+      <TYPE>text/html</TYPE>
+      <TITLE>Source Content (HTML)</TITLE>
+     </item>
     </LINKS>
     <MASTER_LANGUAGE>EN</MASTER_LANGUAGE>
     <ABAP_LANGU_VERSION>5</ABAP_LANGU_VERSION>

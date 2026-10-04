@@ -7,6 +7,7 @@ masks, class categories), so it is generated from the object list below.
     python sap/tools/abapgit_meta.py          # rewrites every *.xml in sap/src
 """
 
+import re
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parent.parent / "src"
@@ -199,6 +200,8 @@ def _field(name: str, spec: str) -> str:
         lines += [f"     <ROLLNAME>{spec[1:]}</ROLLNAME>", "     <ADMINFIELD>0</ADMINFIELD>"]
         if key:
             lines.append("     <NOTNULL>X</NOTNULL>")
+        if spec == "@ABAP_BOOLEAN":
+            lines += ["     <VALEXI>X</VALEXI>", "     <SHLPORIGIN>F</SHLPORIGIN>"]
         lines.append("     <COMPTYPE>E</COMPTYPE>")
     else:
         parts = spec.split()
@@ -324,6 +327,12 @@ def bdef(name: str) -> str:
                  "      <TYPE>text/plain</TYPE>\n"
                  "      <TITLE>Source Content</TITLE>\n"
                  "     </item>\n"
+                 "     <item>\n"
+                 f"      <HREF>./{low}/source/main</HREF>\n"
+                 "      <REL>http://www.sap.com/adt/relations/source</REL>\n"
+                 "      <TYPE>text/html</TYPE>\n"
+                 "      <TITLE>Source Content (HTML)</TITLE>\n"
+                 "     </item>\n"
                  "    </LINKS>\n"
                  "    <MASTER_LANGUAGE>EN</MASTER_LANGUAGE>\n    <ABAP_LANGU_VERSION>5</ABAP_LANGU_VERSION>\n"
                  f"    <SOURCE_URI>./{low}/source/main</SOURCE_URI>\n    <SOURCE_TYPE>ABAP_SOURCE</SOURCE_TYPE>\n"
@@ -355,9 +364,47 @@ def srvb(name: str, definition: str) -> str:
                  "         <SRVD_REF>\n"
                  f"          <URI>/sap/bc/adt/ddic/srvd/sources/{definition.lower()}</URI>\n"
                  f"          <TYPE>SRVD/SRV</TYPE>\n          <NAME>{definition}</NAME>\n"
-                 "         </SRVD_REF>\n        </item>\n       </SERVICE_CONTENT>\n      </item>\n     </SERVICES>\n"
-                 "    </CONTENT>\n    <CONTRACT>C1</CONTRACT>\n    <RELEASE_SUPPORTED>true</RELEASE_SUPPORTED>\n"
-                 "   </SRVB>\n")
+                 "         </SRVD_REF>\n         <BIND_TYPE_DATA>\n          <CONTENT>\n           <ENCODING>base64</ENCODING>\n"
+                 "          </CONTENT>\n         </BIND_TYPE_DATA>\n        </item>\n       </SERVICE_CONTENT>\n      </item>\n"
+                 "     </SERVICES>\n    </CONTENT>\n    <CONTRACT>C1</CONTRACT>\n    <RELEASE_SUPPORTED>true</RELEASE_SUPPORTED>\n"
+                 "    <PUBLISHED>true</PUBLISHED>\n    <BINDING_CREATED>true</BINDING_CREATED>\n"
+                 "    <ALLOWED_ACTION>UNPUBLISH</ALLOWED_ACTION>\n   </SRVB>\n")
+
+
+def _cds_source(name: str) -> str:
+    path = SRC / f"{name.lower()}.ddls.asddls"
+    return path.read_text(encoding="utf-8") if path.exists() else ""
+
+
+def _own_associations(src: str) -> set:
+    targets = set(re.findall(r"composition\s*\[[^\]]*\]\s*of\s+(\w+)", src, re.I))
+    targets |= set(re.findall(r"association\s+(?:to\s+parent\s+|\[[^\]]*\]\s*to\s+|to\s+)(\w+)", src, re.I))
+    targets |= set(re.findall(r"redirected\s+to\s+(?:composition\s+child\s+|parent\s+)?(\w+)", src, re.I))
+    return {t.upper() for t in targets}
+
+
+def baseinfo(name: str) -> str:
+    """The .ddls.baseinfo the system writes: data sources, association targets (a projection also
+    carries those of its base) and, for a projection with associations, the base view."""
+    src = _cds_source(name)
+    sources = re.findall(r"(?:select\s+(?:distinct\s+)?from|projection\s+on)\s+(\w+)", src, re.I)
+    sources = sorted({x.upper() for x in sources})
+    associated = _own_associations(src)
+    base = []
+    projection = re.search(r"projection\s+on\s+(\w+)", src, re.I)
+    if projection:
+        associated |= _own_associations(_cds_source(projection.group(1)))
+        if associated:
+            base = [projection.group(1).upper()]
+
+    def block(key, values):
+        if not values:
+            return f'"{key}":\n[],'
+        return f'"{key}":\n[\n' + ",\n".join(f'"{v}"' for v in values) + "\n],"
+
+    return ("{\n\"BASEINFO\":\n{\n" + block("FROM", sources) + "\n" + block("ASSOCIATED", sorted(associated)) + "\n"
+            + block("BASE", base) + "\n" + block("ANNO_REF", []) + "\n" + block("SCALAR_FUNCTION", []) + "\n"
+            + "\"VERSION\":0,\n\"ANNOREF_EVALUATION_ERROR\":\"\"\n}\n}")
 
 
 PACKAGE = _wrap("LCL_OBJECT_DEVC", "   <DEVC>\n    <CTEXT>Estate Command on SAP</CTEXT>\n"
@@ -374,6 +421,7 @@ def main() -> None:
         out[f"{n.lower()}.intf.xml"] = intf(n, t)
     for n, t in DDLS.items():
         out[f"{n.lower()}.ddls.xml"] = ddls(n, t)
+        out[f"{n.lower()}.ddls.baseinfo"] = baseinfo(n)
     for n in DDLX:
         out[f"{n.lower()}.ddlx.xml"] = ddlx(n)
     for n in DCLS:
@@ -385,8 +433,9 @@ def main() -> None:
     for n, d in SRVB.items():
         out[f"{n.lower()}.srvb.xml"] = srvb(n, d)
     for name, text in out.items():
-        (SRC / name).write_text(text, encoding="utf-8")
-    print(f"{len(out)} XML files written to {SRC}")
+        with open(SRC / name, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+    print(f"{len(out)} files written to {SRC}")
 
 
 if __name__ == "__main__":
