@@ -144,7 +144,7 @@ scenario `ZEST_FIRMS`. Enter the map key as the API key of AI provider row `FIRM
 inactive by `ZCL_EST_SEED`; it is never used as an AI provider). `ZCL_EST_FIRMS` reads the VIIRS
 (Suomi NPP, NOAA-20, NOAA-21) and MODIS near-real-time products for the box around the blocks,
 keeps the hotspots within `fire_radius_km` (register, default 10 km) of the nearest block over
-`fire_days` (default 3), and the app draws them on the map with a strip in the plan panel. Without
+`fire_days` (default 3, at most 5), and the app draws them on the map with a strip in the plan panel. Without
 the arrangement or the key the strip says the fires are unknown.
 
 ### 4. Configure and check

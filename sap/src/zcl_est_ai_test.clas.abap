@@ -51,6 +51,7 @@ CLASS zcl_est_ai_test IMPLEMENTATION.
       out->write( |Stores { material-material }: { material-headline } / { material-leadsentence }| ).
     ENDLOOP.
 
+    out->write( |FIRMS key: { zcl_est_firms=>check_key( ) }| ).
     DATA(fires) = zcl_est_firms=>around( 'SMPL' ).
     out->write( |Fires: { fires-status }| ).
     LOOP AT fires-hotspots INTO DATA(hotspot) TO 5.

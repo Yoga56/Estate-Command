@@ -188,8 +188,8 @@ CLASS zcl_est_assumptions IMPLEMENTATION.
          CHANGING rows = result ).
     add( EXPORTING key = 'fire_days' label = 'Fire watch days' value = 3 unit = 'days'
                    src = source-assumed
-                   basis = 'Hotspots detected over this many past days (FIRMS allows 1 to 10).'
-                   used_by = 'fire hotspots around the estate' min = 1 max = 10 group = 'forecasting'
+                   basis = 'Hotspots detected over this many past days (the FIRMS area API allows 1 to 5).'
+                   used_by = 'fire hotspots around the estate' min = 1 max = 5 group = 'forecasting'
          CHANGING rows = result ).
     " stores
     add( EXPORTING key = 'use_stock_model' label = 'Use learned reorder points' value = 1 unit = '1 on, 0 off'

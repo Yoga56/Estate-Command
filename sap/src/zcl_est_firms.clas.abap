@@ -51,10 +51,23 @@ CLASS zcl_est_firms DEFINITION
       IMPORTING estate        TYPE zest_estate-estate
       RETURNING VALUE(result) TYPE ty_result.
 
-    "! The map key: arrangement property MAP_KEY, else the API key of provider row FIRMS
+    "! The map key: arrangement property MAP_KEY, else the API key of provider row FIRMS. Spaces
+    "! and line breaks pasted with it are removed; FIRMS keys are 32 letters and digits.
     CLASS-METHODS map_key
       RETURNING VALUE(result) TYPE string
       RAISING   zcx_est_ai.
+
+    "! FIRMS' own answer on the key (/api/map_key): its transaction limit and use, or why not
+    CLASS-METHODS check_key
+      RETURNING VALUE(result) TYPE string.
+
+    "! The area path for an estate as it is sent, the key masked - for the error text and the test
+    CLASS-METHODS request_path
+      IMPORTING product       TYPE string
+                area          TYPE string
+                days          TYPE i
+                key           TYPE string
+      RETURNING VALUE(result) TYPE string.
 
   PROTECTED SECTION.
   PRIVATE SECTION.
@@ -95,10 +108,11 @@ CLASS zcl_est_firms IMPLEMENTATION.
       result-radius_km = 10.
     ENDIF.
     result-days = CONV i( zcl_est_assumptions=>value( 'fire_days' ) ).
+    " the area API takes a day range of 1 to 5
     IF result-days < 1.
       result-days = 3.
-    ELSEIF result-days > 10.
-      result-days = 10.
+    ELSEIF result-days > 5.
+      result-days = 5.
     ENDIF.
 
     SELECT block_label, centroid_lon, centroid_lat, geometry FROM zest_block
@@ -142,11 +156,13 @@ CLASS zcl_est_firms IMPLEMENTATION.
       TRY.
           DATA(csv) = zcl_est_ai_http=>get( comm_scenario    = comm_scenario
                                             outbound_service = outbound_service
-                                            path             = |/api/area/csv/{ key }/{ product }/{ area }/{ result-days }| ).
+                                            path             = request_path( product = product area = area
+                                                                             days = result-days key = key ) ).
           APPEND LINES OF parse( csv = csv product = product ) TO hotspots.
           result-known = abap_true.
         CATCH zcx_est_ai INTO DATA(error).
-          APPEND |{ product }: { error->get_text( ) }| TO failures.
+          DATA(masked) = request_path( product = product area = area days = result-days key = `***` ).
+          APPEND |{ product }: { error->get_text( ) } - request { masked }| TO failures.
       ENDTRY.
     ENDLOOP.
 
@@ -205,10 +221,35 @@ CLASS zcl_est_firms IMPLEMENTATION.
     IF result IS INITIAL.
       SELECT SINGLE api_key FROM zest_ai_prov WHERE provider_id = @key_row INTO @result.
     ENDIF.
+    " a key copied from the e-mail often brings a space or a line break along
+    result = replace( val = result pcre = `[^A-Za-z0-9]` with = `` occ = 0 ).
     IF result IS INITIAL.
       RAISE EXCEPTION NEW zcx_est_ai(
         message = |no FIRMS map key: enter it as API key of AI provider row { key_row }, or as arrangement property { key_property }| ).
     ENDIF.
+    IF strlen( result ) <> 32.
+      RAISE EXCEPTION NEW zcx_est_ai(
+        message = |the FIRMS map key in row { key_row } has { strlen( result ) } letters and digits; a FIRMS key has 32| ).
+    ENDIF.
+  ENDMETHOD.
+
+
+  METHOD check_key.
+    TRY.
+        DATA(key) = map_key( ).
+        result = zcl_est_ai_http=>get( comm_scenario    = comm_scenario
+                                       outbound_service = outbound_service
+                                       path             = |/api/map_key/?MAP_KEY={ key }| ).
+        result = |key { substring( val = key len = 4 ) }...: { condense( substring( val = result
+                                                      len = nmin( val1 = 300 val2 = strlen( result ) ) ) ) }|.
+      CATCH zcx_est_ai INTO DATA(error).
+        result = error->get_text( ).
+    ENDTRY.
+  ENDMETHOD.
+
+
+  METHOD request_path.
+    result = |/api/area/csv/{ key }/{ product }/{ area }/{ days }|.
   ENDMETHOD.
 
 
