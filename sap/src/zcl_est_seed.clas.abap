@@ -40,6 +40,12 @@ CLASS zcl_est_seed IMPLEMENTATION.
 
   METHOD if_oo_adt_classrun~main.
     out->write( |{ providers( ) } AI provider(s) written to ZEST_AI_PROV| ).
+    " a string column cannot be compared in WHERE: read the keys and test them here
+    SELECT provider_id, api_key FROM zest_ai_prov WHERE is_active = @abap_true
+      ORDER BY provider_id INTO TABLE @DATA(keyless).
+    LOOP AT keyless INTO DATA(provider) WHERE api_key IS INITIAL.
+      out->write( |  { provider-provider_id }: no key in the row; it needs arrangement property API_KEY| ).
+    ENDLOOP.
     out->write( |{ assumptions( ) } assumption(s) added to ZEST_ASSUMP| ).
     sample_estate( out ).
     out->write( |{ sample_stores( ) } sample stores record(s) written to ZEST_MM_MOCK| ).
@@ -49,7 +55,8 @@ CLASS zcl_est_seed IMPLEMENTATION.
 
   METHOD next.
     seed = ( seed * 1103515245 + 12345 ) MOD 2147483648.
-    result = seed MOD below.
+    " the low bits of this generator repeat on a short cycle: take the high ones
+    result = ( seed DIV 65536 ) MOD below.
   ENDMETHOD.
 
 
@@ -121,6 +128,28 @@ CLASS zcl_est_seed IMPLEMENTATION.
           EXIT.
         ENDLOOP.
       ENDIF.
+    ENDLOOP.
+
+    " The CFO cockpit keeps its keys in its own provider table, not on the arrangements: a row still
+    " without a key takes the cockpit's key for the same scenario. Read dynamically, so this package
+    " does not depend on ZDEMO_FSCM_AI; without that table nothing is copied.
+    TYPES:
+      BEGIN OF ty_foreign_key,
+        comm_scenario TYPE zest_ai_prov-comm_scenario,
+        api_key       TYPE string,
+      END OF ty_foreign_key.
+    DATA foreign_keys TYPE STANDARD TABLE OF ty_foreign_key WITH EMPTY KEY.
+    DATA(cockpit_table) = `ZFSCM_AI_PROV`.
+    TRY.
+        SELECT comm_scenario, api_key FROM (cockpit_table)
+          WHERE api_key IS NOT NULL
+          INTO CORRESPONDING FIELDS OF TABLE @foreign_keys.
+      CATCH cx_root.
+        CLEAR foreign_keys.
+    ENDTRY.
+    DELETE foreign_keys WHERE api_key IS INITIAL.
+    LOOP AT rows ASSIGNING <row> WHERE api_key IS INITIAL.
+      <row>-api_key = VALUE #( foreign_keys[ comm_scenario = <row>-comm_scenario ]-api_key OPTIONAL ).
     ENDLOOP.
 
     MODIFY zest_ai_prov FROM TABLE @rows.
