@@ -161,7 +161,7 @@ sap.ui.define([
       this._view.setProperty("/crews", Object.values(crews));
       const missed = (plan._Lines || []).filter((l) => !l.IsAssigned).length;
       this._view.setProperty("/legend", "Coloured by crew, numbered in the order the crew works them; " +
-        missed + " due blocks not reached are outlined red; grey is not due.");
+        missed + " due blocks not reached are outlined red; a dashed white outline is not due. Zoom in to see the palms.");
     },
 
     _busy: async function (work) {

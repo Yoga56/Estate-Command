@@ -28,7 +28,13 @@ CLASS zcl_est_seed DEFINITION
   PROTECTED SECTION.
   PRIVATE SECTION.
     CONSTANTS sample TYPE zest_estate-estate VALUE 'SMPL'.
-    CONSTANTS block_degrees TYPE decfloat34 VALUE '0.004'.
+    "! a sample block is 300 m east-west by 1,000 m north-south (30 ha), the usual Indonesian grid
+    CONSTANTS block_lon_degrees TYPE decfloat34 VALUE '0.0027'.
+    CONSTANTS block_lat_degrees TYPE decfloat34 VALUE '0.009'.
+    "! south-west corner of the sample: over the planted grid south-east of Kantor Tasik Harapan,
+    "! Rokan Hulu, Riau - zoomed in on the satellite layer, the blocks sit on real oil palm
+    CONSTANTS origin_lon TYPE decfloat34 VALUE '100.1880'.
+    CONSTANTS origin_lat TYPE decfloat34 VALUE '1.5850'.
     CONSTANTS sample_parameter TYPE c LENGTH 8 VALUE 'P_SAMPLE'.
 
     DATA seed TYPE int8 VALUE 20250524.
@@ -256,9 +262,9 @@ CLASS zcl_est_seed IMPLEMENTATION.
     DELETE FROM zest_plan WHERE estate = @sample.
 
     MODIFY zest_estate FROM @( VALUE zest_estate( estate                = sample
-                                        estate_name           = 'Sample Estate (generated)'
-                                        latitude              = '-7.0300'
-                                        longitude             = '140.8500'
+                                        estate_name           = 'Sample Estate (generated, Riau)'
+                                        latitude              = '1.6030'
+                                        longitude             = '100.2015'
                                         currency              = 'IDR'
                                         default_provider      = 'GEMINI_38F'
                                         is_sample             = abap_true
@@ -277,16 +283,17 @@ CLASS zcl_est_seed IMPLEMENTATION.
         DATA(number) = sy-index.
         DATA(column) = ( number - 1 ) MOD 5.
         DATA(row) = ( number - 1 ) DIV 5.
-        DATA(west) = CONV decfloat34( '140.8300' ) + ( ( division - 1 ) * 5 + column ) * block_degrees.
-        DATA(south) = CONV decfloat34( '-7.0400' ) + row * block_degrees.
-        DATA(east) = west + block_degrees.
-        DATA(north) = south + block_degrees.
+        DATA(west) = origin_lon + ( ( division - 1 ) * 5 + column ) * block_lon_degrees.
+        DATA(south) = origin_lat + row * block_lat_degrees.
+        DATA(east) = west + block_lon_degrees.
+        DATA(north) = south + block_lat_degrees.
         DATA(ring) = VALUE zcl_est_geo=>ty_ring( ( lon = CONV f( west ) lat = CONV f( south ) )
                                                  ( lon = CONV f( east ) lat = CONV f( south ) )
                                                  ( lon = CONV f( east ) lat = CONV f( north ) )
                                                  ( lon = CONV f( west ) lat = CONV f( north ) )
                                                  ( lon = CONV f( west ) lat = CONV f( south ) ) ).
-        DATA(ha) = CONV decfloat34( 22 + next( 9 ) ).
+        " 30 ha gross; roads, drains and the collection platform take a little of it
+        DATA(ha) = CONV decfloat34( 27 + next( 3 ) ).
         DATA(planted) = 2008 + next( 12 ).
         APPEND VALUE #(
           estate          = sample
@@ -299,7 +306,7 @@ CLASS zcl_est_seed IMPLEMENTATION.
           planted_year    = planted
           abw_kg          = CONV decfloat34( next( 30 ) ) / 10 + 7
           rotation_days   = 7 + next( 4 )
-          gang_code       = |G{ division }-0{ 1 + column DIV 3 }|
+          gang_code       = |G{ division }-0{ 1 + column DIV 2 }|
           road_condition  = roads[ 1 + next( 5 ) ]
           " about 23 t/ha/yr at 8 kg a bunch, older palms a little more
           bunches_per_day = round( val = ha * ( 7 + CONV decfloat34( 2020 - planted ) / 10 ) dec = 2 )
@@ -311,7 +318,9 @@ CLASS zcl_est_seed IMPLEMENTATION.
       APPEND VALUE #( estate = sample crew_code = |G{ division }-01| crew_type = 'harvest' crew_name = |Gang { division }-01|
                       division = |{ division }| establishment = 26 harvesters = 14 home_block = |{ division }-1| ) TO crews.
       APPEND VALUE #( estate = sample crew_code = |G{ division }-02| crew_type = 'harvest' crew_name = |Gang { division }-02|
-                      division = |{ division }| establishment = 24 harvesters = 13 home_block = |{ division }-4| ) TO crews.
+                      division = |{ division }| establishment = 24 harvesters = 13 home_block = |{ division }-3| ) TO crews.
+      APPEND VALUE #( estate = sample crew_code = |G{ division }-03| crew_type = 'harvest' crew_name = |Gang { division }-03|
+                      division = |{ division }| establishment = 25 harvesters = 14 home_block = |{ division }-5| ) TO crews.
       APPEND VALUE #( estate = sample crew_code = |U{ division }-01| crew_type = 'upkeep' crew_name = |Upkeep { division }-01|
                       division = |{ division }| establishment = 18 home_block = |{ division }-11| ) TO crews.
     ENDDO.
@@ -341,7 +350,7 @@ CLASS zcl_est_seed IMPLEMENTATION.
         DATA(share) = COND decfloat34( WHEN block-road_condition = `poor` THEN CONV decfloat34( 65 + next( 25 ) ) / 100
                                        ELSE CONV decfloat34( 80 + next( 21 ) ) / 100 ).
         DATA(actual) = round( val = planned * share dec = 0 ).
-        DATA(gang) = |G{ block-division }-0{ COND i( WHEN block-gang_code CP '*-01' THEN 1 ELSE 2 ) }|.
+        DATA(gang) = block-gang_code.
         APPEND VALUE #(
           estate           = sample
           order_id         = |WO-{ day DATE = RAW }-H-{ order_no WIDTH = 4 ALIGN = RIGHT PAD = '0' }|

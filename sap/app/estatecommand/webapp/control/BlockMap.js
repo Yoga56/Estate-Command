@@ -1,22 +1,35 @@
+sap.ui.loader.config({
+  // Leaflet is a UMD bundle: let it register as a module instead of setting a global
+  shim: { "zestate/command/thirdparty/leaflet/leaflet": { amd: true, exports: "L" } }
+});
+
 sap.ui.define([
   "sap/ui/core/Control",
-  "sap/ui/core/ResizeHandler"
-], function (Control, ResizeHandler) {
+  "sap/ui/core/ResizeHandler",
+  "zestate/command/thirdparty/leaflet/leaflet"
+], function (Control, ResizeHandler, L) {
   "use strict";
 
-  const SVG = "http://www.w3.org/2000/svg";
-  const PALETTE = ["#1f77b4", "#2ca02c", "#9467bd", "#8c564b", "#e377c2", "#17becf", "#bcbd22", "#ff7f0e",
+  const PALETTE = ["#1f77b4", "#2ca02c", "#9467bd", "#ff7f0e", "#e377c2", "#17becf", "#bcbd22", "#8c564b",
     "#393b79", "#637939", "#7b4173", "#3182bd"];
+  // Esri World Imagery: satellite tiles without a key; zoomed in, the palms are visible
+  const IMAGERY = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+  const PLACES = "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}";
+  // a block without a polygon is drawn as a rectangle this many degrees around its centroid
+  const HALF_LON = 0.00135;
+  const HALF_LAT = 0.0045;
 
-  /** "lon lat,lon lat,..." to [[lon, lat], ...] */
+  /** "lon lat,lon lat,..." to Leaflet [[lat, lon], ...] */
   const parseRing = (text) => (text || "").split(",")
     .map((pair) => pair.trim().split(/\s+/).map(Number))
-    .filter((point) => point.length === 2 && !isNaN(point[0]) && !isNaN(point[1]));
+    .filter((point) => point.length === 2 && !isNaN(point[0]) && !isNaN(point[1]))
+    .map((point) => [point[1], point[0]]);
 
   /**
-   * The estate's blocks drawn as SVG polygons - no map library, so it runs under the
-   * launchpad's content security policy. A block is coloured by the crew assigned to it,
-   * outlined red when it is due and not reached, and grey when nothing is due.
+   * The estate's blocks on satellite imagery (Leaflet). A block is filled with the colour of
+   * the crew assigned to it and numbered in the order the crew works it; a block that is due
+   * but not reached is outlined red; a block with nothing due is outlined white and left clear,
+   * so the palms show through.
    *
    * blocks: [{ BlockKey, BlockLabel, Geometry, CentroidLon, CentroidLat }]
    * lines:  the plan's lines [{ BlockKey, CrewCode, IsAssigned, SequenceNo, ... }]
@@ -41,17 +54,51 @@ sap.ui.define([
       }
     },
 
+    // new data redraws the layers; re-rendering the control would throw the map away
+    setBlocks: function (blocks) {
+      this.setProperty("blocks", blocks, true);
+      this._fitted = false;
+      this._draw();
+      return this;
+    },
+
+    setLines: function (lines) {
+      this.setProperty("lines", lines, true);
+      this._draw();
+      return this;
+    },
+
     onBeforeRendering: function () {
       this._deregister();
     },
 
     onAfterRendering: function () {
+      const dom = this.getDomRef();
+      if (this._map && this._map.getContainer() !== dom) {
+        this._map.remove();
+        this._map = null;
+      }
+      if (!this._map) {
+        this._map = L.map(dom, { zoomControl: true, attributionControl: true, maxZoom: 19 });
+        L.tileLayer(IMAGERY, {
+          maxZoom: 19,
+          maxNativeZoom: 18,
+          attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics"
+        }).addTo(this._map);
+        L.tileLayer(PLACES, { maxZoom: 19, maxNativeZoom: 18, opacity: 0.8 }).addTo(this._map);
+        this._layer = L.layerGroup().addTo(this._map);
+        this._fitted = false;
+      }
       this._draw();
-      this._resizeId = ResizeHandler.register(this, () => this._draw());
+      this._resizeId = ResizeHandler.register(this, () => this._map && this._map.invalidateSize());
     },
 
     exit: function () {
       this._deregister();
+      if (this._map) {
+        this._map.remove();
+        this._map = null;
+      }
     },
 
     _deregister: function () {
@@ -68,91 +115,61 @@ sap.ui.define([
     },
 
     _draw: function () {
-      const dom = this.getDomRef();
-      if (!dom || !dom.clientWidth) {
+      if (!this._map) {
         return;
       }
-      dom.innerHTML = "";
-      const width = dom.clientWidth;
-      const height = this.getHeight();
-      const blocks = (this.getBlocks() || []).map((b) => {
-        const ring = parseRing(b.Geometry);
-        const lon = Number(b.CentroidLon);
-        const lat = Number(b.CentroidLat);
-        return Object.assign({}, b, {
-          ring: ring.length >= 3 ? ring : null,
-          centroid: ring.length ? [ring.reduce((s, p) => s + p[0], 0) / ring.length, ring.reduce((s, p) => s + p[1], 0) / ring.length]
-            : [lon, lat]
-        });
-      }).filter((b) => b.ring || (b.centroid[0] && b.centroid[1]));
-      if (!blocks.length) {
-        dom.textContent = "No block geometry for this estate yet: import its BLOCKS file.";
-        return;
-      }
-
-      // equirectangular projection, scaled to fit
-      const points = blocks.flatMap((b) => b.ring || [b.centroid]);
-      const minLon = Math.min(...points.map((p) => p[0]));
-      const maxLon = Math.max(...points.map((p) => p[0]));
-      const minLat = Math.min(...points.map((p) => p[1]));
-      const maxLat = Math.max(...points.map((p) => p[1]));
-      const kx = Math.cos(((minLat + maxLat) / 2) * Math.PI / 180);
-      const spanX = Math.max((maxLon - minLon) * kx, 1e-6);
-      const spanY = Math.max(maxLat - minLat, 1e-6);
-      const pad = 16;
-      const scale = Math.min((width - 2 * pad) / spanX, (height - 2 * pad) / spanY);
-      const x = (lon) => pad + (lon - minLon) * kx * scale;
-      const y = (lat) => height - pad - (lat - minLat) * scale;
-      const marker = Math.max(4, Math.min(14, scale * 0.002));
-      // a block's on-screen size, for the sequence number inside it
-      const blockSize = blocks[0] && blocks[0].ring
-        ? Math.abs(x(Math.max(...blocks[0].ring.map((p) => p[0]))) - x(Math.min(...blocks[0].ring.map((p) => p[0]))))
-        : marker;
+      this._map.invalidateSize();
+      this._layer.clearLayers();
 
       const byBlock = {};
       (this.getLines() || []).forEach((line) => {
         (byBlock[line.BlockKey] = byBlock[line.BlockKey] || []).push(line);
       });
       const colors = this.crewColors();
+      const bounds = L.latLngBounds([]);
 
-      const svg = document.createElementNS(SVG, "svg");
-      svg.setAttribute("width", width);
-      svg.setAttribute("height", height);
-      blocks.forEach((block) => {
+      (this.getBlocks() || []).forEach((block) => {
+        let ring = parseRing(block.Geometry);
+        if (ring.length < 3) {
+          const lat = Number(block.CentroidLat);
+          const lon = Number(block.CentroidLon);
+          if (!lat && !lon) {
+            return;
+          }
+          ring = [[lat - HALF_LAT, lon - HALF_LON], [lat - HALF_LAT, lon + HALF_LON],
+            [lat + HALF_LAT, lon + HALF_LON], [lat + HALF_LAT, lon - HALF_LON]];
+        }
         const lines = byBlock[block.BlockKey] || [];
         const assigned = lines.find((l) => l.IsAssigned);
         const missed = lines.find((l) => !l.IsAssigned);
-        let shape;
-        if (block.ring) {
-          shape = document.createElementNS(SVG, "polygon");
-          shape.setAttribute("points", block.ring.map((p) => x(p[0]).toFixed(1) + "," + y(p[1]).toFixed(1)).join(" "));
-        } else {
-          shape = document.createElementNS(SVG, "rect");
-          shape.setAttribute("x", (x(block.centroid[0]) - marker / 2).toFixed(1));
-          shape.setAttribute("y", (y(block.centroid[1]) - marker / 2).toFixed(1));
-          shape.setAttribute("width", marker);
-          shape.setAttribute("height", marker);
-        }
-        shape.setAttribute("class", "estBlock" + (assigned ? " estAssigned" : missed ? " estMissed" : ""));
-        shape.setAttribute("fill", assigned ? colors[assigned.CrewCode] : missed ? "#f5d5d5" : "#e8e8e8");
-        const title = document.createElementNS(SVG, "title");
-        title.textContent = block.BlockLabel + (assigned ? " - " + assigned.CrewCode + " #" + assigned.SequenceNo
-          : missed ? " - due, not reached" : "");
-        shape.appendChild(title);
-        shape.addEventListener("click", () => this.fireSelect({ block: block, lines: lines }));
-        svg.appendChild(shape);
+        const style = assigned
+          ? { color: "#ffffff", weight: 1.5, fillColor: colors[assigned.CrewCode], fillOpacity: 0.55 }
+          : missed
+            ? { color: "#e00000", weight: 2.5, fillColor: "#e00000", fillOpacity: 0.15 }
+            : { color: "#ffffff", weight: 1, fillOpacity: 0, dashArray: "4 3" };
 
-        if (assigned && block.ring) {
-          const label = document.createElementNS(SVG, "text");
-          label.setAttribute("x", x(block.centroid[0]).toFixed(1));
-          label.setAttribute("y", y(block.centroid[1]).toFixed(1));
-          label.setAttribute("class", "estLabel");
-          label.setAttribute("font-size", Math.max(9, Math.min(22, blockSize * 0.3)).toFixed(0));
-          label.textContent = assigned.SequenceNo;
-          svg.appendChild(label);
+        const polygon = L.polygon(ring, style)
+          .bindTooltip(block.BlockLabel + (assigned ? " - " + assigned.CrewCode + " #" + assigned.SequenceNo
+            : missed ? " - due, not reached" : " - not due"), { sticky: true })
+          .on("click", () => this.fireSelect({ block: block, lines: lines }));
+        this._layer.addLayer(polygon);
+        bounds.extend(polygon.getBounds());
+
+        if (assigned) {
+          this._layer.addLayer(L.marker(polygon.getBounds().getCenter(), {
+            interactive: false,
+            icon: L.divIcon({ className: "estSeq", html: String(assigned.SequenceNo), iconSize: [22, 22] })
+          }));
         }
       });
-      dom.appendChild(svg);
+
+      if (!this._fitted && bounds.isValid()) {
+        this._map.fitBounds(bounds, { padding: [16, 16] });
+        this._fitted = true;
+      } else if (!bounds.isValid()) {
+        // nothing to show yet: the estates of the sample sit in Riau
+        this._map.setView([1.60, 100.20], 12);
+      }
     }
   });
 });

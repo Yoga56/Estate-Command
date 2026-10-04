@@ -137,7 +137,7 @@ without it (set rain on a replan to override).
 ### 4. Configure and check
 
 1. Run `ZCL_EST_SEED` (F9): provider rows, the assumption register, sample estate `SMPL`
-   (40 blocks, 7 crews, 45 days of ledger, upkeep rounds, stores records). Rerunning keeps API keys
+   (40 blocks of 30 ha in Riau, 9 crews, 45 days of ledger, upkeep rounds, stores records). Rerunning keeps API keys
    and changed assumption values; it rebuilds `SMPL` only.
 2. Run `ZCL_EST_AI_TEST` (F9): one call per provider, then a plan per operation for `SMPL`
    and the stores answer - the whole chain without the UI.
@@ -210,8 +210,12 @@ Then, to put it on the launchpad (ADT, client 80):
 3. *Business Catalog* `ZEST_COMMAND_BC`: add the IAM app. **Publish Locally**.
 4. Client 100, *Maintain Business Roles*: add `ZEST_COMMAND_BC` to a role, assign your user.
 
-The map is drawn as SVG from `ZI_EST_BLOCK` - no external map library, so it runs under the
-launchpad's content security policy.
+The map is Leaflet 1.9.4 (bundled in `webapp/thirdparty/leaflet`, BSD-2-Clause, so no script
+comes from outside the system) over Esri World Imagery tiles. Sample estate `SMPL` lies over a
+planted grid in Rokan Hulu, Riau: 40 blocks of 300 m by 1,000 m; zoom in and the palms show
+inside the rectangles. If the launchpad blocks the tiles (blank background, blocks still drawn),
+allow `https://server.arcgisonline.com` for images in client 100's *Maintain Protection
+Allowlists* app (content security policy).
 
 ---
 

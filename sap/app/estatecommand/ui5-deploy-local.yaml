@@ -3,6 +3,12 @@ metadata:
   name: zestate.command
 type: application
 builder:
+  componentPreload:
+    excludes:
+      - "zestate/command/thirdparty/**"
+  minification:
+    excludes:
+      - "zestate/command/thirdparty/**"
   customTasks:
     - name: deploy-to-abap
       afterTask: generateCachebusterInfo

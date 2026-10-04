@@ -1,9 +1,8 @@
 .estMap { width: 100%; border: 1px solid var(--sapList_BorderColor); border-radius: 0.25rem; background: var(--sapBaseColor); }
-.estBlock { stroke: #ffffff; stroke-width: 0.6; cursor: pointer; }
-.estBlock:hover { stroke: #000000; stroke-width: 1.5; }
-.estMissed { stroke: #bb0000; stroke-width: 1.2; }
-.estLabel { font-weight: bold; fill: #ffffff; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
 .estMuted { color: var(--sapContent_LabelColor); font-size: 0.875rem; }
 .estDocument { font-family: var(--sapFontMonospaceFamily, monospace); white-space: pre-wrap; }
 .estBody { padding-top: 0.5rem; }
 .estBody > .sapMFlexItem { min-width: 0; }
+.estSeq { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px;
+  border-radius: 11px; background: rgba(0, 0, 0, 0.55); color: #ffffff; font-weight: bold; font-size: 12px; }
+.estMap .leaflet-tooltip { font-size: 12px; }
