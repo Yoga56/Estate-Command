@@ -107,7 +107,8 @@ sap.ui.define([
         height: { type: "sap.ui.core.CSSSize", defaultValue: "100%" }
       },
       events: {
-        select: { parameters: { block: { type: "object" }, lines: { type: "object" } } }
+        select: { parameters: { block: { type: "object" }, lines: { type: "object" } } },
+        "firesToggle": { parameters: { on: { type: "boolean" } } }
       }
     },
 
@@ -204,7 +205,8 @@ sap.ui.define([
       this._setBasemap("satellite");
       this._layer = L.layerGroup().addTo(this._map);
       this._fireLayer = L.layerGroup().addTo(this._map);
-      this._firesOn = true;
+      // the live layer is off until asked for: reading it calls NASA FIRMS
+      this._firesOn = false;
       this._fitted = false;
 
       L.control.scale({ position: "bottomright", imperial: false, maxWidth: 110 }).addTo(this._map);
@@ -214,10 +216,9 @@ sap.ui.define([
           { icon: ICONS.plus, title: "Zoom in", press: () => this._map.zoomIn() },
           { icon: ICONS.minus, title: "Zoom out", press: () => this._map.zoomOut() },
           { icon: ICONS.fit, title: "Fit the estate", press: () => this.fit(true) },
-          { icon: ICONS.fire, title: "Fire hotspots (NASA FIRMS): show or hide", press: (button) => {
-            this._firesOn = !this._firesOn;
-            button.setAttribute("aria-pressed", String(this._firesOn));
-            this._drawFires();
+          { icon: ICONS.fire, title: "Live fire hotspots (NASA FIRMS): read and show, or hide", press: () => {
+            this.showFires(!this._firesOn);
+            this.fireFiresToggle({ on: this._firesOn });
           } },
           { icon: ICONS.layers, title: "Choose the basemap", press: (button, bar) => this._toggleMenu(bar, button) }
         ]
@@ -312,6 +313,13 @@ sap.ui.define([
       }
     },
 
+    /** Shows or hides the live fire layer */
+    showFires: function (on) {
+      this._firesOn = !!on;
+      this._drawFires();
+      return this;
+    },
+
     /** Fits the estate and the fire hotspots around it */
     fitFires: function () {
       const points = (this.getFires() || []).map((f) => [Number(f.Latitude), Number(f.Longitude)]);
@@ -403,17 +411,20 @@ sap.ui.define([
         }
         const lines = byBlock[block.BlockKey] || [];
         const assigned = lines.find((l) => l.IsAssigned);
-        const missed = !assigned && lines.length > 0;
-        const color = assigned ? colors[assigned.CrewCode] : missed ? "#ff4d4f" : "#ffffff";
-        const kind = assigned ? "assigned" : missed ? "missed" : "idle";
+        const held = !assigned && lines.some((l) => String(l.LineNote || "").indexOf("held back for fire") === 0);
+        const missed = !assigned && !held && lines.length > 0;
+        const color = assigned ? colors[assigned.CrewCode] : held ? "#ff8a1f" : missed ? "#ff4d4f" : "#ffffff";
+        const kind = assigned ? "assigned" : held ? "held" : missed ? "missed" : "idle";
         const style = assigned
           ? { color: color, weight: 1.5, opacity: 0.95, fillColor: color, fillOpacity: 0.42 }
-          : missed
-            ? { color: color, weight: 2, opacity: 0.95, fillColor: color, fillOpacity: 0.12, dashArray: "6 4" }
-            : { color: color, weight: 1, opacity: 0.55, fillColor: "#ffffff", fillOpacity: 0.02, dashArray: "2 5" };
+          : held
+            ? { color: color, weight: 2.5, opacity: 1, fillColor: color, fillOpacity: 0.28, dashArray: "1 5", lineCap: "round" }
+            : missed
+              ? { color: color, weight: 2, opacity: 0.95, fillColor: color, fillOpacity: 0.12, dashArray: "6 4" }
+              : { color: color, weight: 1, opacity: 0.55, fillColor: "#ffffff", fillOpacity: 0.02, dashArray: "2 5" };
 
         const polygon = L.polygon(ring, Object.assign({ className: "estBlock estBlock--" + kind }, style))
-          .bindTooltip(this._tooltip(block, assigned, missed, color), {
+          .bindTooltip(this._tooltip(block, assigned, missed || held, color, held), {
             sticky: true, direction: "top", offset: [0, -10], className: "estTip", opacity: 1
           })
           .on("mouseover", () => polygon.setStyle({ weight: style.weight + 1.5, fillOpacity: style.fillOpacity + 0.18 }))
@@ -443,15 +454,15 @@ sap.ui.define([
         this.fit(false);
         this._fitted = true;
       } else if (!bounds.isValid()) {
-        // nothing to show yet: the estates of the sample sit in Riau
-        this._map.setView([1.60, 100.20], 13);
+        // no estate chosen yet: Sumatra, where the estates of the samples lie
+        this._map.setView([0.2, 101.6], 6);
       }
       this._highlight();
     },
 
-    _tooltip: function (block, assigned, missed, color) {
+    _tooltip: function (block, assigned, missed, color, held) {
       const state = assigned ? escape(assigned.CrewCode) + " &middot; #" + escape(assigned.SequenceNo)
-        : missed ? "due, not reached" : "nothing due";
+        : held ? "held back for fire" : missed ? "due, not reached" : "nothing due";
       return "<div class=\"estTipTitle\"><i style=\"background:" + color + "\"></i>Block " + escape(block.BlockLabel) +
         "</div><div class=\"estTipText\">" + state + "</div>";
     },

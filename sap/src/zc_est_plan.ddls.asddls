@@ -31,6 +31,8 @@ define root view entity ZC_EST_PLAN
   RainMm,
   RainProbability,
   WeatherSource,
+  FireText,
+  FireHeld,
   StopsWork,
   StopReason,
   Overrides,

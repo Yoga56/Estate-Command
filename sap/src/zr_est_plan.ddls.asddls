@@ -28,6 +28,8 @@ define root view entity ZR_EST_PLAN
   rain_mm as RainMm,
   rain_probability as RainProbability,
   weather_source as WeatherSource,
+  fire_text as FireText,
+  fire_held as FireHeld,
   stops_work as StopsWork,
   stop_reason as StopReason,
   overrides as Overrides,

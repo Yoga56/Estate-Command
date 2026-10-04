@@ -65,10 +65,19 @@ CLASS zcl_est_scheduler DEFINITION
       END OF ty_crew,
       ty_crews TYPE STANDARD TABLE OF ty_crew WITH EMPTY KEY.
     TYPES:
+      "! a block held back because a fire hotspot burns this close to it
+      BEGIN OF ty_fire_hold,
+        item     TYPE zcl_est_demand=>ty_item,
+        km       TYPE decfloat34,
+        hotspot  TYPE zcl_est_firms=>ty_hotspot,
+      END OF ty_fire_hold,
+      ty_fire_holds TYPE STANDARD TABLE OF ty_fire_hold WITH EMPTY KEY.
+    TYPES:
       BEGIN OF ty_plan,
         crews              TYPE ty_crews,
         items              TYPE zcl_est_demand=>ty_items,
         not_reached        TYPE zcl_est_demand=>ty_items,
+        fire_held          TYPE ty_fire_holds,
         weather            TYPE zcl_est_weather=>ty_weather,
         stops_work         TYPE abap_bool,
         stop_reason        TYPE string,
@@ -97,6 +106,7 @@ CLASS zcl_est_scheduler DEFINITION
                 on            TYPE d
                 overrides     TYPE ty_overrides OPTIONAL
                 weather       TYPE zcl_est_weather=>ty_weather OPTIONAL
+                fires         TYPE zcl_est_firms=>ty_result OPTIONAL
       RETURNING VALUE(result) TYPE ty_plan.
 
   PROTECTED SECTION.
@@ -233,12 +243,34 @@ CLASS zcl_est_scheduler IMPLEMENTATION.
     SORT result-used.
     DELETE ADJACENT DUPLICATES FROM result-used.
 
+    " a block this close to a fire hotspot is held back for the crews' safety (0 holds none)
+    DATA(hold_km) = CONV f( zcl_est_assumptions=>value( 'fire_hold_km' ) ).
+    IF fires-hotspots IS NOT INITIAL.
+      APPEND `fire_hold_km` TO result-used.
+    ENDIF.
+
     " what the plan may not touch
     LOOP AT demand-items INTO DATA(candidate).
       CHECK candidate-man_days > 0.
       CHECK overrides-block_held IS INITIAL
          OR ( candidate-block_label <> overrides-block_held AND candidate-block_key <> overrides-block_held ).
       CHECK overrides-division IS INITIAL OR candidate-division = overrides-division.
+      IF hold_km > 0 AND fires-hotspots IS NOT INITIAL.
+        DATA(nearest) = VALUE ty_fire_hold( item = candidate km = -1 ).
+        LOOP AT fires-hotspots INTO DATA(hotspot).
+          DATA(km) = zcl_est_geo=>km( a = candidate-centroid
+                                      b = VALUE #( lon = hotspot-longitude lat = hotspot-latitude ) ).
+          IF nearest-km < 0 OR km < nearest-km.
+            nearest-km      = km.
+            nearest-hotspot = hotspot.
+          ENDIF.
+        ENDLOOP.
+        IF nearest-km >= 0 AND nearest-km <= hold_km.
+          nearest-km = round( val = nearest-km dec = 2 ).
+          APPEND nearest TO result-fire_held.
+          CONTINUE.
+        ENDIF.
+      ENDIF.
       APPEND candidate TO result-items.
     ENDLOOP.
 

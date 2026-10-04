@@ -37,6 +37,8 @@ sap.ui.define([
   /** The message an OData failure carries, else the error text. */
   const messageOf = (error) => (error && error.error && error.error.message) || (error && error.message) || String(error);
   const num = (value, digits) => Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: digits === undefined ? 1 : digits });
+  const FIRE_HOLD = "held back for fire";
+  const isFireHold = (line) => String(line.LineNote || "").indexOf(FIRE_HOLD) === 0;
   const statusOf = (code) => STATUS[code] || { text: code || "No plan", state: "None" };
   const compact = (value) => new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 2 })
     .format(Number(value) || 0);
@@ -89,12 +91,10 @@ sap.ui.define([
       this._service = this.getOwnerComponent().getService();
       this._plansByOp = {};
       this._busy(async () => {
+        // nothing more is read until an estate is chosen
         const estates = await this._service.estates();
-        this._view.setProperty("/estates", estates);
-        if (estates.length) {
-          this._view.setProperty("/estate", estates[0].Estate);
-          await this._loadEstate();
-        }
+        this._view.setProperty("/estates", [{ Estate: "", EstateName: "Choose an estate\u2026" }].concat(estates));
+        this._clearEstate();
       });
     },
 
@@ -105,7 +105,18 @@ sap.ui.define([
     },
 
     onEstateChange: function () {
+      if (!this._view.getProperty("/estate")) {
+        this._clearEstate();
+        return;
+      }
       this._busy(() => this._loadEstate());
+    },
+
+    /** Live hotspots from NASA FIRMS, read only when asked for: the fire button or Show on map */
+    onFiresToggle: function (event) {
+      if (event.getParameter("on") && this._firesFor !== this._view.getProperty("/estate")) {
+        this._loadFires(this._view.getProperty("/estate"));
+      }
     },
 
     onOperationSelect: function (event) {
@@ -126,6 +137,11 @@ sap.ui.define([
 
     onGenerate: function () {
       const v = this._view.getData();
+      if (!v.estate) {
+        MessageToast.show("Choose an estate first");
+        return;
+      }
+      this._freshPlanFire();
       this._busy(async () => {
         await this._show(this._service.generate(v.estate, v.operation));
         await this._loadPlans(true);
@@ -146,7 +162,16 @@ sap.ui.define([
       });
     },
 
+    /** A plan about to be made reads FIRMS itself: its fire picture replaces an earlier live read in the strip */
+    _freshPlanFire: function () {
+      const fire = this._view.getProperty("/fire");
+      if (fire && fire.live) {
+        this._view.setProperty("/fire/live", false);
+      }
+    },
+
     onReplan: function () {
+      this._freshPlanFire();
       const changes = Object.assign({}, this._view.getProperty("/replan"));
       changes.CrewPresent = Number(changes.CrewPresent) || 0;
       this._busy(async () => {
@@ -195,7 +220,11 @@ sap.ui.define([
       setTimeout(() => this.byId("map").fit(true), 380);
     },
 
-    onShowFires: function () {
+    onShowFires: async function () {
+      const estate = this._view.getProperty("/estate");
+      if (this._firesFor !== estate) {
+        await this._loadFires(estate);
+      }
       this.byId("map").fitFires();
     },
 
@@ -339,9 +368,12 @@ sap.ui.define([
       const record = this._view.getProperty("/estates").find((e) => e.Estate === estate) || {};
       this._view.setProperty("/subtitle", record.EstateName || estate);
       this.onBlockClose();
+      this._view.setProperty("/emptyText", "No plan yet for this operation: press Plan Tomorrow.");
+      // a new estate: its live hotspots are read again only when asked for
+      this._firesFor = null;
+      this._view.setProperty("/fires", []);
+      this.byId("map").showFires(false);
       this._view.setProperty("/blocks", await this._service.blocks(estate));
-      // FIRMS is read on the way; the plan does not wait for it
-      this._loadFires(estate);
       this._view.setProperty("/stores", []);
       this._view.setProperty("/handover", null);
       await this._loadPlans();
@@ -391,6 +423,7 @@ sap.ui.define([
         this._view.setProperty("/crews", []);
         this.onBlockClose();
         this._legend();
+        this._planFire(null);
       }
     },
 
@@ -413,6 +446,7 @@ sap.ui.define([
       this._view.setProperty("/crews", Object.values(crews));
       this._why(plan, colors);
       this._legend();
+      this._planFire(plan);
 
       // the block on the card follows the plan on screen
       const selected = this._view.getProperty("/selected");
@@ -424,10 +458,33 @@ sap.ui.define([
       }
     },
 
-    /** Fire hotspots from NASA FIRMS: the strip in the panel and the layer on the map */
-    _loadFires: async function (estate) {
+    /** Before an estate is chosen: an empty map over Sumatra, nothing read */
+    _clearEstate: function () {
+      this.onBlockClose();
+      this._plansByOp = {};
+      this._firesFor = null;
+      this._view.setProperty("/subtitle", "Choose an estate");
+      this._view.setProperty("/emptyText", "Choose an estate to see its blocks, tomorrow's plans and the fires around it.");
+      this._view.setProperty("/blocks", []);
       this._view.setProperty("/fires", []);
-      this._view.setProperty("/fire", { text: "Reading NASA FIRMS fire hotspots\u2026", type: "Information", count: 0 });
+      this._view.setProperty("/plan", null);
+      this._view.setProperty("/planUuid", "");
+      this._view.setProperty("/crews", []);
+      this._view.setProperty("/stores", []);
+      this._view.setProperty("/handover", null);
+      this._view.setProperty("/fire", null);
+      this._refreshOps();
+      this._view.setProperty("/legendTitle", "No estate chosen");
+    },
+
+    /** Fire hotspots from NASA FIRMS, live: the layer on the map and the strip in the panel */
+    _loadFires: async function (estate) {
+      if (!estate) {
+        return;
+      }
+      this._firesFor = estate;
+      this._view.setProperty("/fires", []);
+      this._view.setProperty("/fire", { text: "Reading NASA FIRMS fire hotspots\u2026", type: "Information", count: 0, live: true });
       try {
         const rows = await this._service.fires(estate);
         if (estate !== this._view.getProperty("/estate")) {
@@ -436,14 +493,38 @@ sap.ui.define([
         const status = rows.find((r) => r.IsStatus) || {};
         const hotspots = rows.filter((r) => !r.IsStatus);
         this._view.setProperty("/fires", hotspots);
+        this.byId("map").showFires(true);
         this._view.setProperty("/fire", {
-          text: status.StatusText || "No answer from the fire service",
+          text: "Now: " + (status.StatusText || "no answer from the fire service"),
           type: ["Information", "Error", "Warning", "Success"][Number(status.Criticality) || 0] || "Information",
-          count: hotspots.length
+          count: hotspots.length,
+          live: true
         });
       } catch (error) {
-        this._view.setProperty("/fire", { text: "Fire hotspots unknown: " + messageOf(error), type: "Information", count: 0 });
+        this._firesFor = null;
+        this._view.setProperty("/fire", { text: "Fire hotspots unknown: " + messageOf(error), type: "Information", count: 0, live: true });
       }
+    },
+
+    /** The fire strip from the plan: what FIRMS said when the plan was made, and the blocks it held back */
+    _planFire: function (plan) {
+      const live = this._view.getProperty("/fire");
+      if (live && live.live) {
+        return; // a live read is newer than the plan
+      }
+      if (!plan) {
+        this._view.setProperty("/fire", this._view.getProperty("/estate")
+          ? { text: "Fire hotspots: not read yet.", type: "Information", count: 1 } : null);
+        return;
+      }
+      const text = plan.FireText || "Fire hotspots: not read with this plan.";
+      const held = Number(plan.FireHeld) || 0;
+      this._view.setProperty("/fire", {
+        text: "At planning: " + text,
+        type: held > 0 ? "Error" : /unknown|not read/.test(text) ? "Information"
+          : /no fire hotspots/.test(text) ? "Success" : "Warning",
+        count: 1
+      });
     },
 
     /** The Why tab: the scheduler's figures and the plan's lines, formatted for reading */
@@ -460,9 +541,10 @@ sap.ui.define([
         waitingFull: num(l.Deferral, 0) + " IDR"
       });
       const reached = lines.filter((l) => l.IsAssigned).map(row);
-      const missed = lines.filter((l) => !l.IsAssigned).map(row);
-      this._view.setProperty("/lineRows", { reached: reached, missed: missed });
-      this._view.setProperty("/lineCounts", { reached: reached.length, missed: missed.length });
+      const held = lines.filter((l) => !l.IsAssigned && isFireHold(l)).map(row);
+      const missed = lines.filter((l) => !l.IsAssigned && !isFireHold(l)).map(row);
+      this._view.setProperty("/lineRows", { reached: reached, held: held, missed: missed });
+      this._view.setProperty("/lineCounts", { reached: reached.length, held: held.length, missed: missed.length });
       this._view.setProperty("/whyFacts", [
         { label: "Blocks", value: plan.BlocksAssigned + " of " + plan.BlocksDue + " due" },
         { label: "Man-days", value: num(plan.ManDaysDue) + " needed", note: num(plan.CapacityMd) + " available" },
@@ -471,6 +553,8 @@ sap.ui.define([
         { label: "Contiguity", value: num(plan.ContiguityPercent) + "% bonus", note: "costs " + compact(plan.ContiguityCost) + " IDR" },
         { label: "Swaps", value: String(plan.Swaps || 0) + " improvements" },
         { label: "Rain", value: num(plan.RainMm) + " mm, " + num(plan.RainProbability, 0) + "%", note: plan.WeatherSource },
+        { label: "Fire", value: Number(plan.FireHeld) ? plan.FireHeld + " block(s) held back" : "none held back",
+          note: plan.FireText || "not read with this plan" },
         { label: "Changes", value: plan.Overrides || "none" }
       ]);
     },
@@ -478,9 +562,11 @@ sap.ui.define([
     _legend: function () {
       const op = OPERATIONS.find((o) => o.key === this._view.getProperty("/operation"));
       const plan = this._view.getProperty("/plan");
-      const missed = plan ? (plan._Lines || []).filter((l) => !l.IsAssigned).length : 0;
+      const missed = plan ? (plan._Lines || []).filter((l) => !l.IsAssigned && !isFireHold(l)).length : 0;
+      const held = plan ? (plan._Lines || []).filter(isFireHold).length : 0;
       this._view.setProperty("/legendTitle", op.text + (plan
-        ? " · " + this._view.getProperty("/crews").length + " crews · " + missed + " not reached"
+        ? " · " + this._view.getProperty("/crews").length + " crews · " + missed + " not reached" +
+          (held ? " · " + held + " held for fire" : "")
         : " · no plan"));
     },
 
@@ -493,7 +579,7 @@ sap.ui.define([
       const assigned = lines.find((l) => l.IsAssigned);
       const line = assigned || lines[0];
       const state = assigned ? assigned.CrewCode + " · #" + assigned.SequenceNo + " in its round"
-        : line ? "Due, not reached" : "Nothing due";
+        : line && isFireHold(line) ? "Held back for fire" : line ? "Due, not reached" : "Nothing due";
       const facts = [
         { key: "block", text: "Block " + block.BlockLabel },
         { key: "crew", text: assigned ? assigned.CrewCode + " #" + assigned.SequenceNo : line ? "Not reached" : "Nothing due" }

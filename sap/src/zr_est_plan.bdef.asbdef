@@ -32,6 +32,8 @@ etag master LocalLastChangedAt
    RainMm,
    RainProbability,
    WeatherSource,
+   FireText,
+   FireHeld,
    StopsWork,
    StopReason,
    Overrides,
@@ -114,6 +116,8 @@ etag master LocalLastChangedAt
     RainMm = rain_mm;
     RainProbability = rain_probability;
     WeatherSource = weather_source;
+    FireText = fire_text;
+    FireHeld = fire_held;
     StopsWork = stops_work;
     StopReason = stop_reason;
     Overrides = overrides;

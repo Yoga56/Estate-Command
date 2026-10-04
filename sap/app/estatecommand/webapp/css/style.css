@@ -63,6 +63,7 @@
 .estBlock { transition: fill-opacity 0.2s ease, stroke-width 0.2s ease; cursor: pointer; }
 .estBlock--assigned { filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.35)); }
 .estBlock--missed { animation: estPulse 2.4s ease-in-out infinite; }
+.estBlock--held { filter: drop-shadow(0 0 8px rgba(255, 120, 30, 0.75)); }
 .estBlock--selected { stroke: #ffffff !important; stroke-width: 3.5px !important; stroke-dasharray: none !important;
   filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.85)); }
 @keyframes estPulse { 0%, 100% { stroke-opacity: 0.95; } 50% { stroke-opacity: 0.35; } }
@@ -147,6 +148,7 @@
 @media (prefers-reduced-motion: reduce) { .estFire::after { animation: none; opacity: 0.6; } }
 .estMapBtn[aria-pressed="true"] { color: #ffb000; }
 .estMapBtn[aria-pressed="false"] { color: rgba(255, 255, 255, 0.55); }
+.estKey--held { border: 2px dotted #ff8a1f; background: rgba(255, 138, 31, 0.3); }
 .estKey--fire { width: 12px; height: 12px; border-radius: 50%;
   background: radial-gradient(circle, #fff6c9 0 18%, #ffb000 38%, #ff5a1f 70%); box-shadow: 0 0 6px rgba(255, 90, 31, 0.9); }
 .estFireStrip.sapMMsgStrip { margin: 0 12px 10px; border-radius: 12px; }
@@ -236,6 +238,10 @@
 .estPanel { position: absolute; top: var(--estGap); right: var(--estGap); bottom: var(--estGap); z-index: 12;
   width: var(--estPanelWidth); max-width: calc(100% - 2 * var(--estGap)); display: flex; flex-direction: column;
   overflow: hidden; transition: transform 0.38s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease; }
+/* the panel's rows keep their height; only the scrolling part gives way */
+.estPanel > * { flex-shrink: 0; }
+.estPanel > .estPanelScroll { flex-shrink: 1; }
+.estFireStrip.sapMMsgStrip { height: auto; }
 .estPanel.estCollapsed { transform: translateX(calc(100% + 2 * var(--estGap))); opacity: 0; pointer-events: none; }
 /* the handle of the collapsed panel: dark glass like the map buttons */
 .estPage .estPanelHandle.sapMBtn { position: absolute; top: var(--estGap); right: var(--estGap); z-index: 12;
@@ -329,6 +335,8 @@
 .estGrid .estGridCrew .sapMText { flex: 0 1 auto; }
 .estGridGroup.sapMText { padding: 10px 12px 4px; font-size: 0.6875rem !important; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.05em; color: var(--sapPositiveTextColor, #256f3a) !important; }
+.estGridGroup--fire.sapMText { color: #c2410c !important;
+  border-top: 1px solid color-mix(in srgb, var(--sapList_BorderColor, #e5e5e5) 70%, transparent); }
 .estGridGroup--missed.sapMText { color: var(--sapNegativeTextColor, #aa0808) !important;
   border-top: 1px solid color-mix(in srgb, var(--sapList_BorderColor, #e5e5e5) 70%, transparent); }
 .estGridFoot.sapMText { padding: 8px 12px 10px; font-size: 0.75rem !important; }

@@ -144,6 +144,14 @@ annotate view ZC_EST_PLAN with
   @UI.fieldGroup: [ { qualifier: 'Weather', position: 30 } ]
   WeatherSource;
 
+  @EndUserText.label: 'Fire Hotspots (NASA FIRMS)'
+  @UI.fieldGroup: [ { qualifier: 'Weather', position: 34 } ]
+  FireText;
+
+  @EndUserText.label: 'Blocks Held for Fire'
+  @UI.fieldGroup: [ { qualifier: 'Weather', position: 36 } ]
+  FireHeld;
+
   @EndUserText.label: 'Work Stops'
   @UI.fieldGroup: [ { qualifier: 'Weather', position: 32 } ]
   StopsWork;

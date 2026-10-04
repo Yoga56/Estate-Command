@@ -38,6 +38,8 @@ CLASS zcl_est_plan_builder DEFINITION
         rainmm            TYPE decfloat34,
         rainprobability   TYPE i,
         weathersource     TYPE zest_plan-weather_source,
+        firetext          TYPE zest_plan-fire_text,
+        fireheld          TYPE i,
         stopswork         TYPE abap_bool,
         stopreason        TYPE zest_plan-stop_reason,
         overrides         TYPE string,
@@ -223,6 +225,7 @@ CLASS zcl_est_plan_builder DEFINITION
       IMPORTING data          TYPE REF TO zcl_est_data
                 header        TYPE ty_header
                 plan          TYPE zcl_est_scheduler=>ty_plan
+                fires         TYPE zcl_est_firms=>ty_result OPTIONAL
       RETURNING VALUE(result) TYPE string.
 
     CLASS-METHODS to_lines
@@ -288,10 +291,13 @@ CLASS zcl_est_plan_builder IMPLEMENTATION.
     DATA(weather) = zcl_est_weather=>forecast( latitude  = CONV #( data->estate-latitude )
                                                longitude = CONV #( data->estate-longitude )
                                                on        = day ).
+    " active fires from NASA FIRMS: blocks next to one are held back, the rest is evidence
+    DATA(fires) = zcl_est_firms=>around( estate ).
     DATA(plan) = NEW zcl_est_scheduler( data )->plan( operation = op
                                                       on        = day
                                                       overrides = overrides
-                                                      weather   = weather ).
+                                                      weather   = weather
+                                                      fires     = fires ).
 
     result-header = VALUE #(
       estate            = estate
@@ -300,7 +306,7 @@ CLASS zcl_est_plan_builder IMPLEMENTATION.
       crews             = lines( plan-crews )
       present           = plan-present
       capacitymd        = round( val = plan-capacity_md dec = 2 )
-      blocksdue         = lines( plan-items )
+      blocksdue         = lines( plan-items ) + lines( plan-fire_held )
       mandaysdue        = round( val = plan-need_md dec = 2 )
       deferraldue       = round( val = plan-deferral_due dec = 0 )
       valuerecovered    = plan-achieved
@@ -312,6 +318,12 @@ CLASS zcl_est_plan_builder IMPLEMENTATION.
       rainmm            = COND #( WHEN plan-weather-known = abap_true THEN plan-weather-rain_mm )
       rainprobability   = plan-weather-probability
       weathersource     = plan-weather-source
+      firetext          = COND #( WHEN plan-fire_held IS INITIAL THEN fires-status
+                                  ELSE |{ fires-status }; { lines( plan-fire_held ) } block(s) held back: | &&
+                                       |{ concat_lines_of( table = VALUE string_table( FOR h IN plan-fire_held
+                                                                                        ( CONV #( h-item-block_label ) ) )
+                                                           sep = `, ` ) }| )
+      fireheld          = lines( plan-fire_held )
       stopswork         = plan-stops_work
       stopreason        = plan-stop_reason
       overrides         = overrides_to_json( overrides ) ).
@@ -322,7 +334,7 @@ CLASS zcl_est_plan_builder IMPLEMENTATION.
       result-header-mandaysassigned = result-header-mandaysassigned + line-mandays.
     ENDLOOP.
 
-    result-header-prompt = evidence( data = data header = result-header plan = plan ).
+    result-header-prompt = evidence( data = data header = result-header plan = plan fires = fires ).
     write_words( EXPORTING provider_id = COND #( WHEN provider_id IS NOT INITIAL THEN provider_id
                                                  ELSE data->estate-default_provider )
                  CHANGING  header      = result-header ).
@@ -376,6 +388,32 @@ CLASS zcl_est_plan_builder IMPLEMENTATION.
       ENDLOOP.
     ENDLOOP.
 
+    " held back for fire: due, but nobody is sent next to a burning hotspot
+    LOOP AT plan-fire_held INTO DATA(held).
+      number = number + 1.
+      APPEND VALUE #(
+        linenumber    = number
+        isassigned    = abap_false
+        blockkey      = held-item-block_key
+        blocklabel    = held-item-block_label
+        division      = held-item-division
+        activity      = held-item-activity
+        quantity      = held-item-qty
+        qtyunit       = held-item-unit
+        mandays       = held-item-man_days
+        workshare     = 0
+        urgency       = held-item-urgency
+        dayssince     = held-item-days_since
+        targetdays    = held-item-target_days
+        blockvalue    = held-item-value_idr
+        deferral      = held-item-deferral_idr
+        roadcondition = held-item-road_condition
+        criticality   = criticality-negative
+        linenote      = |held back for fire: hotspot { zcl_est_data=>num( held-km ) } km away | &&
+                        |({ held-hotspot-satellite } { held-hotspot-acq_date DATE = ISO }, | &&
+                        |{ zcl_est_data=>num( held-hotspot-frp ) } MW)| ) TO result.
+    ENDLOOP.
+
     " what nobody reaches tomorrow, so the cost of the day's limits is on the same page
     LOOP AT plan-not_reached INTO DATA(item).
       IF sy-tabix > max_not_reached_lines.
@@ -420,6 +458,7 @@ CLASS zcl_est_plan_builder IMPLEMENTATION.
                         |({ header-weathersource }), chance of rain { header-rainprobability }%\n|
                    ELSE |Rain on the day: unknown ({ header-weathersource })\n| ) &&
       COND string( WHEN header-stopswork = abap_true THEN |Work stops: { header-stopreason }\n| ) &&
+      |\nFIRE (NASA FIRMS satellite hotspots)\n{ header-firetext }\n| &&
       |\nCAPACITY\n| &&
       |{ header-crews } crews, { header-present } people expected, { zcl_est_data=>num( header-capacitymd ) } man-days | &&
       |available; { zcl_est_data=>num( header-mandaysdue ) } man-days needed for everything due.\n| &&
@@ -469,6 +508,25 @@ CLASS zcl_est_plan_builder IMPLEMENTATION.
       ENDLOOP.
     ENDIF.
 
+    IF plan-fire_held IS NOT INITIAL.
+      result = result && |\nHELD BACK FOR FIRE ({ lines( plan-fire_held ) } blocks; due, but within the fire hold distance of a hotspot)\n|.
+      LOOP AT plan-fire_held INTO DATA(held).
+        result = result &&
+          |- block { held-item-block_label } { held-item-activity }: hotspot { zcl_est_data=>num( held-km ) } km away, | &&
+          |{ held-hotspot-confidence } confidence, { zcl_est_data=>num( held-hotspot-frp ) } MW, detected { held-hotspot-acq_date DATE = ISO } | &&
+          |{ held-hotspot-acq_time } UTC; { zcl_est_data=>num( value = held-item-deferral_per_day decimals = 0 ) } per day while it waits\n|.
+      ENDLOOP.
+    ENDIF.
+    IF fires-hotspots IS NOT INITIAL.
+      result = result && |\nNEAREST HOTSPOTS\n|.
+      LOOP AT fires-hotspots INTO DATA(hotspot) TO 5.
+        result = result &&
+          |- { zcl_est_data=>num( hotspot-distance_km ) } km from block { hotspot-nearest_block }| &&
+          COND string( WHEN hotspot-inside = abap_true THEN ` (inside the block)` ) &&
+          |, { hotspot-confidence } confidence, { zcl_est_data=>num( hotspot-frp ) } MW, { hotspot-acq_date DATE = ISO } { hotspot-acq_time } UTC\n|.
+      ENDLOOP.
+    ENDIF.
+
     result = result && |\nASSUMPTIONS\n{ zcl_est_assumptions=>describe( plan-used ) }|.
   ENDMETHOD.
 
@@ -485,7 +543,8 @@ CLASS zcl_est_plan_builder IMPLEMENTATION.
       |summary: two or three sentences: which crews go where, what is left and what it costs per day.\n| &&
       |why: two to four sentences: why these blocks first (urgency and deferral value per man-day), the binding | &&
       |constraint, the gap to the upper bound and what contiguity cost.\n| &&
-      |risks: at most three short lines a manager should check before approving (weather, roads, a thin crew).\n| &&
+      |risks: at most three short lines a manager should check before approving (fire hotspots and blocks held | &&
+      |back for fire first when there are any, then weather, roads, a thin crew).\n| &&
       |Name blocks by their label and crews by their code. Return one JSON object only.|.
   ENDMETHOD.
 

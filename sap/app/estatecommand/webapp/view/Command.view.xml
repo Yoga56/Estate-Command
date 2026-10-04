@@ -6,7 +6,7 @@
   <!-- the map fills the page; everything else floats over it on frosted glass -->
   <Page id="page" showHeader="false" enableScrolling="false" class="estPage">
     <content>
-      <est:BlockMap id="map" class="estMapFull" blocks="{view>/blocks}" lines="{view>/plan/_Lines}" fires="{view>/fires}"
+      <est:BlockMap id="map" class="estMapFull" blocks="{view>/blocks}" lines="{view>/plan/_Lines}" fires="{view>/fires}" firesToggle=".onFiresToggle"
                     selectedBlock="{view>/selected/key}" insetRight="{view>/insetRight}" insetBottom="{view>/insetBottom}" insetTop="80"
                     select=".onBlockSelect"/>
 
@@ -19,7 +19,7 @@
         </VBox>
         <Select id="estate" width="15rem" change=".onEstateChange" class="estGlassInput"
                 items="{ path: 'view>/estates', templateShareable: false }" selectedKey="{view>/estate}">
-          <core:Item key="{view>Estate}" text="{view>Estate} {view>EstateName}"/>
+          <core:Item key="{view>Estate}" text="{= ${view>Estate} ? ${view>Estate} + ' ' + ${view>EstateName} : ${view>EstateName} }"/>
         </Select>
       </HBox>
 
@@ -37,7 +37,7 @@
               <Text text="{view>crew} &#183; {view>blocks}" wrapping="false"/>
             </HBox>
           </HBox>
-          <core:HTML content="&lt;div class=&quot;estKeys&quot;&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--missed&quot;&gt;&lt;/i&gt;due, not reached&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--idle&quot;&gt;&lt;/i&gt;nothing due&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--seq&quot;&gt;1&lt;/i&gt;order of work&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--fire&quot;&gt;&lt;/i&gt;fire hotspot (NASA FIRMS)&lt;/span&gt;&lt;/div&gt;"/>
+          <core:HTML content="&lt;div class=&quot;estKeys&quot;&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--missed&quot;&gt;&lt;/i&gt;due, not reached&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--idle&quot;&gt;&lt;/i&gt;nothing due&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--seq&quot;&gt;1&lt;/i&gt;order of work&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--held&quot;&gt;&lt;/i&gt;held back for fire&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--fire&quot;&gt;&lt;/i&gt;fire hotspot (NASA FIRMS)&lt;/span&gt;&lt;/div&gt;"/>
         </VBox>
       </VBox>
 
@@ -103,12 +103,13 @@
         <!-- NASA FIRMS: fire hotspots around the estate, whether or not there is a plan -->
         <MessageStrip class="estFireStrip" text="{view>/fire/text}" type="{view>/fire/type}" showIcon="true"
                       customIcon="sap-icon://temperature" visible="{= !!${view>/fire} }">
-          <link><Link text="Show on map" press=".onShowFires" visible="{= ${view>/fire/count} > 0 }"/></link>
+          <link><Link text="{= ${view>/fire/live} ? 'Show on map' : 'Read live on map' }" press=".onShowFires"
+                      visible="{= !!${view>/estate} &amp;&amp; (!${view>/fire/live} || ${view>/fire/count} > 0) }"/></link>
         </MessageStrip>
 
         <VBox class="estPanelScroll" renderType="Bare">
           <VBox visible="{= !${view>/plan} }" renderType="Bare" class="estEmpty">
-            <Text text="No plan yet for this operation: press Plan Tomorrow."/>
+            <Text text="{view>/emptyText}"/>
           </VBox>
           <VBox visible="{= !!${view>/plan} }" renderType="Bare" class="estSummary">
             <Title text="{view>/plan/Headline}" wrapping="true" level="H3"/>
@@ -189,6 +190,20 @@
                           <core:Icon src="sap-icon://color-fill" color="{view>color}" size="0.75rem"/>
                           <Text text="{view>crew}" wrapping="false"/>
                           <Text text="{view>seq}" class="estMuted" wrapping="false"/>
+                        </HBox>
+                        <Text text="{view>block}" wrapping="false"/>
+                        <Text text="{view>urgency}" class="estNum" textAlign="End" wrapping="false"/>
+                        <Text text="{view>manDays}" class="estNum" textAlign="End" wrapping="false"/>
+                        <Text text="{view>waiting}" class="estNum" textAlign="End" wrapping="false" tooltip="{view>waitingFull}"/>
+                      </HBox>
+                    </VBox>
+                    <Text text="Held back for fire &#183; {view>/lineCounts/held}" class="estGridGroup estGridGroup--fire"
+                          visible="{= ${view>/lineCounts/held} > 0 }"/>
+                    <VBox items="{ path: 'view>/lineRows/held', templateShareable: false }" renderType="Bare">
+                      <HBox renderType="Bare" class="estGridRow estGridRow--fire">
+                        <HBox renderType="Bare" class="estGridCrew" alignItems="Center">
+                          <core:Icon src="sap-icon://temperature" color="#e8590c" size="0.75rem"/>
+                          <Text text="fire hold" class="estMuted" wrapping="false"/>
                         </HBox>
                         <Text text="{view>block}" wrapping="false"/>
                         <Text text="{view>urgency}" class="estNum" textAlign="End" wrapping="false"/>

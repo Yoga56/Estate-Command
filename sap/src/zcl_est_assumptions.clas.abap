@@ -186,6 +186,11 @@ CLASS zcl_est_assumptions IMPLEMENTATION.
                    basis = 'NASA FIRMS hotspots this far from the nearest block are shown on the map and in the plan.'
                    used_by = 'fire hotspots around the estate' min = 1 max = 50 group = 'forecasting'
          CHANGING rows = result ).
+    add( EXPORTING key = 'fire_hold_km' label = 'Hold blocks this near a fire' value = 1 unit = 'km'
+                   src = source-assumed
+                   basis = 'A block whose centre is this close to a FIRMS hotspot is held back from tomorrow''s plan for the crews'' safety; 0 holds none.'
+                   used_by = 'blocks held back for fire' min = 0 max = 10 group = 'forecasting'
+         CHANGING rows = result ).
     add( EXPORTING key = 'fire_days' label = 'Fire watch days' value = 3 unit = 'days'
                    src = source-assumed
                    basis = 'Hotspots detected over this many past days (the FIRMS area API allows 1 to 5).'

@@ -216,7 +216,7 @@ CLASS lhc_plan IMPLEMENTATION.
         ENTITY plan
           UPDATE FIELDS ( Status StatusCriticality Crews Present CapacityMd BlocksDue ManDaysDue BlocksAssigned
                           ManDaysAssigned DeferralDue ValueRecovered UpperBound GapPercent ContiguityCost
-                          ContiguityPercent Swaps RainMm RainProbability WeatherSource StopsWork StopReason
+                          ContiguityPercent Swaps RainMm RainProbability WeatherSource FireText FireHeld StopsWork StopReason
                           Overrides Headline Summary WhyText AuditChecked AuditUnverified AuditCriticality
                           ProviderId ModelId InputTokens OutputTokens ErrorText Prompt RawResponse
                           DecidedBy DecidedAt DecisionNote DueDate ExpectedEffect ArtifactText )
