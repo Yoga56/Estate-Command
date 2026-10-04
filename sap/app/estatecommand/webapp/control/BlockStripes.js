@@ -35,10 +35,13 @@ sap.ui.define([
     animate: !stillMotion()
   }, PRESETS.ribbon);
 
-  const SLICE = 3; // css px per column of the ribbon
+  const SLICE = 5; // css px per column of the ribbon
   const OVERHANG = 40; // css px a stripe runs on past the box, so its ends never show
   const UNFURL_MS = 700; // one stripe running in or out
   const STAGGER_MS = 80; // between one stripe and the next
+  const FLOW_MS = 1000 / 30; // the type flows at 30 frames a second: smooth enough, half the work of 60
+  const REVEAL_MS = 1000 / 60; // running in and out is short, so it gets 60
+  const ASIDE_MS = 500; // out of sight (background tab, behind the phone's sheet): look again this often
 
   /** "#rrggbb" to perceived brightness 0..1 */
   const brightness = (hex) => {
@@ -133,7 +136,8 @@ sap.ui.define([
     /** Rebuilds the stripes and draws a frame (the loop keeps drawing while animated) */
     refresh: function () {
       this._strips = null;
-      if (this._canvas && this._wantsLoop() && !this._raf) {
+      if (this._canvas && this._wantsLoop() && !this._raf && !this._timer) {
+        this._drawn = 0;
         this._loop();
       } else {
         this._frame(performance.now());
@@ -149,6 +153,7 @@ sap.ui.define([
       this._strips = null;
       this._resizeId = ResizeHandler.register(this, () => this.refresh());
       this._start = this._start || performance.now();
+      this._drawn = 0;
       this._loop();
     },
 
@@ -161,6 +166,10 @@ sap.ui.define([
         cancelAnimationFrame(this._raf);
         this._raf = null;
       }
+      if (this._timer) {
+        clearTimeout(this._timer);
+        this._timer = null;
+      }
       if (this._resizeId) {
         ResizeHandler.deregister(this._resizeId);
         this._resizeId = null;
@@ -171,12 +180,38 @@ sap.ui.define([
       return !!this._reveal || (this._shown && this.settings().animate);
     },
 
+    /** Draws at most FLOW_MS apart (REVEAL_MS while running in or out); waits without drawing while out of sight */
     _loop: function () {
       const tick = (now) => {
-        this._frame(now);
-        this._raf = this._wantsLoop() && this.getDomRef() ? requestAnimationFrame(tick) : null;
+        this._raf = null;
+        this._timer = null;
+        if (!this.getDomRef()) {
+          return;
+        }
+        if (now - this._drawn >= (this._reveal ? REVEAL_MS : FLOW_MS) - 1) {
+          this._drawn = now;
+          this._frame(now);
+        }
+        if (!this._wantsLoop()) {
+          return;
+        }
+        if (document.hidden || !this._inSight(now)) {
+          this._timer = setTimeout(() => tick(performance.now()), ASIDE_MS);
+        } else {
+          this._raf = requestAnimationFrame(tick);
+        }
       };
       tick(performance.now());
+    },
+
+    /** Whether the stripes can be seen at all; read from the styles at most every ASIDE_MS */
+    _inSight: function (now) {
+      if (!this._sightAt || now - this._sightAt >= ASIDE_MS) {
+        const dom = this.getDomRef();
+        this._sightAt = now;
+        this._sight = !!dom && dom.offsetWidth > 0 && getComputedStyle(dom).visibility !== "hidden";
+      }
+      return this._sight;
     },
 
     /** How far stripe `row` has run in, 0..1 */
@@ -306,11 +341,9 @@ sap.ui.define([
       const n = [across[0] * cos - across[1] * sin, across[0] * sin + across[1] * cos];
       const middle = [diagonal / 2 * along[0] + depth / 2 * across[0], diagonal / 2 * along[1] + depth / 2 * across[1]];
 
-      const key = JSON.stringify([rows, rowHeight, s.gap, s.palette, s.facts, s.uppercase, s.fontScale, this.getFacts(),
-        this.getColor(), width, height]);
-      if (!this._strips || this._stripsKey !== key) {
+      // refresh() and a new canvas size drop the strips; otherwise they are drawn once and reused
+      if (!this._strips) {
         this._strips = this._buildStrips(Object.assign({}, s, { rows: rows }), length, rowHeight, dpr);
-        this._stripsKey = key;
       }
 
       // local x runs along the stripes, local y across them
@@ -319,6 +352,7 @@ sap.ui.define([
       const t = (now - (this._start || now)) / 1000;
       const clock = s.animate ? t : 0;
       const entering = !this._reveal || this._reveal.dir > 0;
+      ctx.fillStyle = "#000000"; // the shade of a turning ribbon: one colour, its strength in globalAlpha
 
       this._strips.forEach((strip, row) => {
         const progress = this._progress(row, rows, now);
@@ -333,7 +367,7 @@ sap.ui.define([
         // the type flows up the stripe, each stripe at its own pace
         const pace = s.speed * 48 * (1 + 0.18 * (row % 3));
         const scroll = ((clock * pace) % strip.unit + strip.unit) % strip.unit;
-        ctx.globalAlpha = Math.min(1, 0.2 + progress * 1.2);
+        const alpha = Math.min(1, 0.2 + progress * 1.2);
         for (let x = Math.floor(from / SLICE) * SLICE; x < to; x += SLICE) {
           const share = x / length;
           const angle = s.twist * Math.sin(share * s.twistWaves * Math.PI * 2 + clock * s.speed * 1.6 + row * 0.7);
@@ -347,10 +381,12 @@ sap.ui.define([
           const y = center + s.wave * Math.sin(share * Math.PI * 2 + clock * s.speed * 1.3 + row * 0.9) - tall / 2;
           const source = turn >= 0 ? strip.front : strip.back;
           const sx = ((x + scroll) % strip.unit) * dpr;
+          ctx.globalAlpha = alpha;
           ctx.drawImage(source, sx, 0, SLICE * dpr, source.height, x, y, SLICE + 0.6, tall);
-          if (s.twist > 0) {
-            // light falls off as the ribbon turns away
-            ctx.fillStyle = "rgba(0, 0, 0, " + ((1 - Math.abs(turn)) * 0.45).toFixed(3) + ")";
+          // light falls off as the ribbon turns away
+          const shade = (1 - Math.abs(turn)) * 0.45;
+          if (s.twist > 0 && shade > 0.02) {
+            ctx.globalAlpha = alpha * shade;
             ctx.fillRect(x, y, SLICE + 0.6, tall);
           }
         }

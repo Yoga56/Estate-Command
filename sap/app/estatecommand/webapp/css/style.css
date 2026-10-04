@@ -55,18 +55,14 @@
 /* --- map */
 .estMapFull { position: absolute; inset: 0; z-index: 0; }
 .estMap { width: 100%; background: #0b1410; font-family: var(--sapFontFamily); }
-.estMap .estTiles { filter: saturate(1.15) contrast(1.06) brightness(0.86); transition: filter 0.4s; }
-.estMap[data-basemap="terrain"] .estTiles { filter: saturate(0.9) brightness(0.95); }
-.estMap[data-basemap="dark"] .estTiles { filter: none; }
 .estMap::after { /* vignette: the eye goes to the middle, the glass reads at the edges */
   content: ""; position: absolute; inset: 0; z-index: 450; pointer-events: none;
   background: radial-gradient(ellipse at 45% 50%, transparent 55%, rgba(0, 10, 5, 0.45) 100%);
 }
 
 .estBlock { transition: fill-opacity 0.2s ease, stroke-width 0.2s ease; cursor: pointer; }
-.estBlock--assigned { filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.35)); }
-.estBlock--missed { animation: estPulse 2.4s ease-in-out infinite; }
-.estBlock--held { filter: drop-shadow(0 0 8px rgba(255, 120, 30, 0.75)); }
+/* blocks carry no filters (each one is redrawn on every pan and zoom); only the selected one glows */
+.estBlock--missed { animation: estPulse 2.4s ease-in-out 3; } /* draws the eye three times, then rests */
 .estBlock--selected { stroke: #ffffff !important; stroke-width: 3.5px !important; stroke-dasharray: none !important;
   filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.85)); }
 @keyframes estPulse { 0%, 100% { stroke-opacity: 0.95; } 50% { stroke-opacity: 0.35; } }
@@ -78,8 +74,7 @@
   box-sizing: border-box; border-radius: 12px; color: #08130d; font-weight: 700; font-size: 12px;
   border: 2px solid rgba(255, 255, 255, 0.95); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45); }
 .estPinLabel { display: none; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; color: var(--sapTextColor);
-  background: var(--estGlassStrong); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-  letter-spacing: 0.02em; }
+  background: var(--estGlassStrong); letter-spacing: 0.02em; }
 .estNear .estPinLabel { display: block; }
 
 .estMap .leaflet-right { right: var(--estInsetRight, 0px); transition: right 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
@@ -202,11 +197,10 @@
 .estCardLines .sapMLIB { padding: 0; }
 .estLine { display: flex; flex-direction: column; gap: 2px; padding: 6px var(--estPad); }
 
-/* --- buttons and fields: frosted pills, one style for every button on the page */
+/* --- buttons and fields: pills on the glass they sit on, one style for every button on the page */
 .estPage .sapMBtn .sapMBtnInner,
 .estPop .sapMBtn .sapMBtnInner {
   border-radius: 999px; border: 1px solid var(--estGlassBorder); background: var(--estPillBg);
-  -webkit-backdrop-filter: blur(14px) saturate(160%); backdrop-filter: blur(14px) saturate(160%);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.3);
   transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
@@ -215,7 +209,7 @@
 .estPage .sapMBtn:active .sapMBtnInner, .estPop .sapMBtn:active .sapMBtnInner { transform: scale(0.97); }
 .estPage .sapMBtn .sapMBtnInner.sapMBtnTransparent,
 .estPop .sapMBtn .sapMBtnInner.sapMBtnTransparent {
-  background: transparent; border-color: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  background: transparent; border-color: transparent; box-shadow: none; }
 .estPage .sapMBtn .sapMBtnInner.sapMBtnTransparent:hover,
 .estPop .sapMBtn .sapMBtnInner.sapMBtnTransparent:hover { background: var(--estPillBg); border-color: var(--estGlassBorder); }
 .estPage .sapMBtn .sapMBtnInner.sapMBtnEmphasized {
@@ -231,8 +225,7 @@
 
 .estPage .sapMSlt, .estPop .sapMSlt,
 .estPage .sapMInputBaseContentWrapper, .estPop .sapMInputBaseContentWrapper {
-  border-radius: 999px; background: var(--estFieldBg) !important; border-color: var(--estGlassBorder);
-  -webkit-backdrop-filter: blur(14px) saturate(160%); backdrop-filter: blur(14px) saturate(160%); }
+  border-radius: 999px; background: var(--estFieldBg) !important; border-color: var(--estGlassBorder); }
 .estPage .sapMSlt .sapMSltArrow, .estPop .sapMSlt .sapMSltArrow,
 .estPage .sapMInputBaseIconContainer, .estPop .sapMInputBaseIconContainer { background: transparent; border-radius: 999px; }
 .estPage .sapMSltLabel, .estPop .sapMSltLabel { padding-left: 0.875rem; }

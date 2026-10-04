@@ -15,9 +15,10 @@ sap.ui.define([
   // Esri basemaps: no key, one host (server.arcgisonline.com) for the content security allowlist
   const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/";
   const BASEMAPS = {
-    satellite: { title: "Satellite", tiles: ["World_Imagery", "Reference/World_Boundaries_and_Places"], native: 18 },
-    terrain: { title: "Terrain", tiles: ["World_Topo_Map"], native: 18 },
-    dark: { title: "Dark", tiles: ["Canvas/World_Dark_Gray_Base", "Canvas/World_Dark_Gray_Reference"], native: 16 }
+    // dim: the base layer's opacity over the dark map ground; cheaper than a CSS filter, which redraws every tile
+    satellite: { title: "Satellite", tiles: ["World_Imagery", "Reference/World_Boundaries_and_Places"], native: 18, dim: 0.86 },
+    terrain: { title: "Terrain", tiles: ["World_Topo_Map"], native: 18, dim: 0.95 },
+    dark: { title: "Dark", tiles: ["Canvas/World_Dark_Gray_Base", "Canvas/World_Dark_Gray_Reference"], native: 16, dim: 1 }
   };
   const BASEMAP_ORDER = ["satellite", "terrain", "dark"];
   const svg = (paths) => "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\">" + paths + "</svg>";
@@ -383,7 +384,7 @@ sap.ui.define([
       this._basemap = L.layerGroup(basemap.tiles.map((service, i) => L.tileLayer(ESRI + service + "/MapServer/tile/{z}/{y}/{x}", {
         maxZoom: 19,
         maxNativeZoom: basemap.native,
-        opacity: i ? 0.85 : 1,
+        opacity: i ? 0.85 : basemap.dim,
         className: i ? "estTilesLabels" : "estTiles",
         attribution: i ? "" : "Tiles &copy; Esri, Maxar, Earthstar Geographics"
       }))).addTo(this._map);
