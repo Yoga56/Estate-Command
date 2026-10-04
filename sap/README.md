@@ -168,8 +168,9 @@ CFO cockpit's keys are maintained in client 100. Code is shared; table contents 
    provider rows; `ApiKey` blank means arrangement property `API_KEY`).
 4. *Application Jobs* → template `ZEST_PLAN_JOB_T` → run once: a plan per operation for every
    estate; the Plan app shows them with the model's words, or status `F` and the reason.
-5. UI5 app against client 100: `npm run start-100` (destination `my402225`); deploy with
-   `npm run deploy-100`.
+5. UI5 app against client 100: `npm run start-100` (destination `my402225`). There is no deploy
+   to client 100: the BSP application is a repository object, deployed once from client 80 and
+   visible in both clients.
 
 ### 5. The estate's own data
 
@@ -196,7 +197,8 @@ npm run deploy     # BSP application ZEST_COMMAND in package ZESTATE_CMD (client
 ```
 
 `ui5-local.yaml` / `npm run start-local` run the same from a local machine without BAS
-(reentrance ticket); `ui5-100.yaml` / `npm run start-100` preview against client 100.
+(reentrance ticket); `ui5-100.yaml` / `npm run start-100` preview against client 100. Deploy only
+to client 80: clients 80 and 100 share the repository, so the app is in client 100 as well.
 
 Then, to put it on the launchpad (ADT, client 80):
 

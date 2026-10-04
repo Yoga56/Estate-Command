@@ -8,7 +8,6 @@
     "build": "ui5 build --config ./ui5.yaml --clean-dest --dest dist",
     "deploy": "npm run build && fiori deploy --config ./ui5-deploy.yaml",
     "start-100": "ui5 serve --config ./ui5-100.yaml --open index.html",
-    "deploy-100": "npm run build && fiori deploy --config ./ui5-deploy-100.yaml",
     "start-local": "ui5 serve --config ./ui5-local.yaml --open index.html",
     "deploy-local": "npm run build && fiori deploy --config ./ui5-deploy-local.yaml"
   },
