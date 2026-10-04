@@ -59,7 +59,8 @@ sap.ui.define([
    * facts:  [{ key, text }] - which of them show is config.facts
    * color:  the crew's colour, used by the "crew" palette
    * config: { preset, rows, thickness, gap, angle, twist, twistWaves, wave, speed, fontScale, palette, facts, uppercase,
-   *           animate }; thickness is px per stripe; animate off also drops the run in and out
+   *           animate }; thickness is the most px a stripe gets (more stripes than fit share the room);
+   *           animate off also drops the run in and out
    *         read on every frame, so a changed value shows at once; call refresh() when not animating
    */
   const BlockStripes = Control.extend("zestate.command.control.BlockStripes", {
@@ -290,9 +291,12 @@ sap.ui.define([
       const diagonal = Math.hypot(width, height);
       const depth = width * height / diagonal; // from the diagonal to the corner
       const length = diagonal + 2 * OVERHANG;
-      const rowHeight = Math.max(6, Number(s.thickness) || 56);
-      // the stack of stripes sits in the middle of the triangle, however thick it is
-      const offset = (depth - (rows * rowHeight + (rows - 1) * s.gap)) / 2;
+      // the stack of stripes stays inside the triangle: thickness is the most a stripe gets, and
+      // more stripes than fit at that thickness share the room; it keeps clear of the diagonal by the ripple
+      const margin = Math.abs(s.wave) + 6;
+      const room = Math.max(rows * 6, depth - 2 * margin - (rows - 1) * s.gap);
+      const rowHeight = Math.max(6, Math.min(Number(s.thickness) || 56, room / rows));
+      const offset = margin + (room - rows * rowHeight) / 2;
       const theta = Number(s.angle || 0) * Math.PI / 180;
       const cos = Math.cos(theta);
       const sin = Math.sin(theta);
