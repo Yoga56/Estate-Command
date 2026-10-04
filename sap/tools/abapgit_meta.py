@@ -176,7 +176,9 @@ DCLS = ["ZR_EST_PLAN", "ZC_EST_PLAN"]
 BDEF = ["ZR_EST_AI_PROV", "ZC_EST_AI_PROV", "ZR_EST_PLAN", "ZC_EST_PLAN", "ZR_EST_ASSUMP", "ZC_EST_ASSUMP",
         "ZR_EST_ESTATE", "ZC_EST_ESTATE", "ZR_EST_IMPORT", "ZC_EST_IMPORT"]
 SRVD = {"ZUI_EST_CMD_O4": "Estate Command service"}
-SRVB = {"ZUI_EST_CMD_O4": "ZUI_EST_CMD_O4"}
+# The service binding is created in ADT (its binding content cannot be written by hand) and is
+# ignored in .abapgit.xml, so a pull never overwrites it.
+SRVB: dict = {}
 
 
 def _wrap(serializer: str, body: str) -> str:

@@ -10,6 +10,7 @@
     <item>/LICENSE</item>
     <item>/README.md</item>
     <item>/package.json</item>
+    <item>/sap/src/zui_est_cmd_o4.srvb.xml</item>
    </IGNORE>
   </DATA>
  </asx:values>

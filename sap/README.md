@@ -86,7 +86,10 @@ The XML beside each source is generated: `python sap/tools/abapgit_meta.py`.
    `ZCL_EST_DEMAND`, `ZCL_EST_SCHEDULER`, `ZCL_EST_AUDIT`, `ZCL_EST_PLAN_BUILDER`,
    `ZCL_EST_IMPORT`, `ZCL_EST_MM_DATA`, `ZCL_EST_STORES`, `ZCL_EST_STORES_QUERY` → `ZC_*` views →
    behavior definitions and `ZBP_*` → metadata extensions → `ZUI_EST_CMD_O4` → the remaining classes.
-4. Publish service binding `ZUI_EST_CMD_O4`.
+4. Create the service binding in ADT - it is not in the repository, because its binding content
+   cannot be written by hand: right-click service definition `ZUI_EST_CMD_O4` → *New Service
+   Binding* → name `ZUI_EST_CMD_O4`, type *OData V4 - UI* → activate → **Publish**.
+   `.abapgit.xml` ignores the binding, so later pulls leave it alone.
 
 ### 2. Objects to create by hand in ADT
 
