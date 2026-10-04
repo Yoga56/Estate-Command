@@ -28,15 +28,16 @@
       </Toolbar>
     </customHeader>
 
-    <l:Splitter height="100%">
-      <VBox class="sapUiSmallMargin">
-        <layoutData><l:SplitterLayoutData size="55%"/></layoutData>
+    <!-- map left, tabs right; a plain flex row renders the same in the launchpad and in preview -->
+    <HBox width="100%" alignItems="Start" class="estBody">
+      <VBox width="100%" class="sapUiSmallMarginEnd">
+        <layoutData><FlexItemData growFactor="11" baseSize="0" minWidth="20rem"/></layoutData>
         <ObjectStatus text="{view>/legend}" state="Information" class="sapUiTinyMarginBottom"/>
         <est:BlockMap id="map" blocks="{view>/blocks}" lines="{view>/plan/_Lines}" select=".onBlockSelect"/>
       </VBox>
 
-      <IconTabBar id="tabs" expandable="false" stretchContentHeight="true" class="sapUiNoContentPadding">
-        <layoutData><l:SplitterLayoutData size="auto"/></layoutData>
+      <IconTabBar id="tabs" expandable="false" class="sapUiNoContentPadding">
+        <layoutData><FlexItemData growFactor="9" baseSize="0" minWidth="22rem"/></layoutData>
         <items>
           <IconTabFilter key="plan" text="Plan" icon="sap-icon://activity-items">
             <VBox visible="{= !!${view>/plan} }">
@@ -196,6 +197,6 @@
           </IconTabFilter>
         </items>
       </IconTabBar>
-    </l:Splitter>
+    </HBox>
   </Page>
 </mvc:View>

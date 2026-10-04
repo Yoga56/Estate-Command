@@ -16,7 +16,7 @@ sap.ui.define([
     onInit: function () {
       this._view = new JSONModel({
         estates: [], estate: "", operation: "harvest", plans: [], planUuid: "", plan: null, blocks: [], crews: [],
-        legend: "", decision: { note: "", dueDate: null, expected: "" }, replan: Object.assign({}, EMPTY_REPLAN),
+        legend: "Loading the estate...", decision: { note: "", dueDate: null, expected: "" }, replan: Object.assign({}, EMPTY_REPLAN),
         question: "", answer: null, handover: null, outcomes: [], stores: []
       });
       this.getView().setModel(this._view, "view");
