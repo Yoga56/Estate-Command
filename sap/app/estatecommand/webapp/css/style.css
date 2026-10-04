@@ -382,6 +382,11 @@ html.estApp .sapMPopover .sapMLIBFocusable:focus { outline-offset: -2px; }
   .estLegend { display: none; }
   .estBlockCard { bottom: auto; top: calc(2 * var(--estGap) + var(--estTopH, 52px)); max-height: calc(52% - 100px); }
   .estStripesStage { bottom: 48%; height: 30%; min-height: 200px; width: 55%; }
+  /* the sheet goes down, so its handle waits at the bottom; the ribbons take the floor of the page,
+     under the map's buttons, scale and attribution */
+  .estPage .estPanelHandle.sapMBtn { top: auto; bottom: calc(var(--estGap) + 36px + env(safe-area-inset-bottom, 0px));
+    right: auto; left: var(--estGap); }
+  .estPanelClosed .estStripesStage { bottom: 0; height: 40%; width: 70%; }
 }
 
 /* phones: a compact top bar, the plan as a taller sheet, the map above it */
@@ -408,14 +413,11 @@ html.estApp .sapMPopover .sapMLIBFocusable:focus { outline-offset: -2px; }
   .estKpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .estGrid .estGridRow { gap: 6px; padding: 6px 10px; }
   .estGrid .sapMText { font-size: 0.8125rem; }
-  .estPage .estPanelHandle.sapMBtn { top: auto; bottom: calc(var(--estGap) + 36px + env(safe-area-inset-bottom, 0px));
-    right: auto; left: var(--estGap); }
   .estBlockCard { max-height: calc(60% - 140px); }
   .estPanel { bottom: calc(var(--estGap) + env(safe-area-inset-bottom, 0px)); }
   /* the ribbons sit in a real corner: above the sheet when it is open, at the bottom when it is closed */
   .estStripesStage { bottom: 50%; height: 30%; min-height: 180px; width: 88%; min-width: 0; }
-  /* on the floor of the page, under the map's buttons, scale and attribution */
-  .estPanelClosed .estStripesStage { bottom: 0; height: 40%; width: 92%; }
+  .estPanelClosed .estStripesStage { width: 92%; }
   /* with the sheet up the attribution has no room; it comes back with the map */
   .estPage:not(.estPanelClosed) .estMap .leaflet-control-attribution { display: none; }
   /* with the sheet up there is no room left: the block card and its ribbons wait until it goes down */
