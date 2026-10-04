@@ -140,7 +140,8 @@ without it (set rain on a replan to override).
 For fire hotspots only: request a free NASA FIRMS map key at
 https://firms.modaps.eosdis.nasa.gov/api/map_key/ ; communication system host
 `firms.modaps.eosdis.nasa.gov`, port 443, outbound user authentication *None*, arrangement on
-scenario `ZEST_FIRMS`. Enter the map key as the API key of AI provider row `FIRMS` (created
+scenario `ZEST_FIRMS` with the outbound service's *Path* left empty (a `/` there makes `//api/...`;
+the code retries without its leading slash, but empty is cleaner; the same holds for `ZEST_WEATHER`). Enter the map key as the API key of AI provider row `FIRMS` (created
 inactive by `ZCL_EST_SEED`; it is never used as an AI provider). `ZCL_EST_FIRMS` reads the VIIRS
 (Suomi NPP, NOAA-20, NOAA-21) and MODIS near-real-time products for the box around the blocks,
 keeps the hotspots within `fire_radius_km` (register, default 10 km) of the nearest block over

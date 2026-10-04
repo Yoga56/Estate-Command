@@ -151,11 +151,29 @@ CLASS zcl_est_ai_http IMPLEMENTATION.
 
 
   METHOD get.
-    result = execute( comm_scenario    = comm_scenario
-                      outbound_service = outbound_service
-                      method           = if_web_http_client=>get
-                      path             = path
-                      label            = comm_scenario ).
+    TRY.
+        result = execute( comm_scenario    = comm_scenario
+                          outbound_service = outbound_service
+                          method           = if_web_http_client=>get
+                          path             = path
+                          label            = comm_scenario ).
+      CATCH zcx_est_ai INTO DATA(error).
+        " An arrangement whose service path is "/" turns /api/... into //api/..., which some
+        " hosts refuse (FIRMS answers 400 or 404): once more without our leading slash
+        DATA(text) = error->get_text( ).
+        IF NOT path CP '/*' OR NOT ( text CS `HTTP 400` OR text CS `HTTP 404` ).
+          RAISE EXCEPTION error.
+        ENDIF.
+        TRY.
+            result = execute( comm_scenario    = comm_scenario
+                              outbound_service = outbound_service
+                              method           = if_web_http_client=>get
+                              path             = substring( val = path off = 1 )
+                              label            = comm_scenario ).
+          CATCH zcx_est_ai.
+            RAISE EXCEPTION error.
+        ENDTRY.
+    ENDTRY.
   ENDMETHOD.
 
 
