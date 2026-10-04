@@ -186,8 +186,15 @@ CLASS zcl_est_ai_http IMPLEMENTATION.
     ENDTRY.
 
     IF status-code < 200 OR status-code > 299.
-      RAISE EXCEPTION NEW zcx_est_ai(
-        message = |{ label }: HTTP { status-code } { status-reason } { substring( val = result len = nmin( val1 = strlen( result ) val2 = 200 ) ) }| ).
+      " an HTML error page says what it is in its title; anything else in its first characters
+      DATA(detail) = condense( result ).
+      FIND FIRST OCCURRENCE OF PCRE `<title>\s*([^<]*?)\s*</title>` IN detail SUBMATCHES DATA(title) IGNORING CASE.
+      IF sy-subrc = 0.
+        detail = |(HTML page "{ title }")|.
+      ELSE.
+        detail = substring( val = detail len = nmin( val1 = strlen( detail ) val2 = 200 ) ).
+      ENDIF.
+      RAISE EXCEPTION NEW zcx_est_ai( message = |{ label }: HTTP { status-code } { status-reason } { detail }| ).
     ENDIF.
   ENDMETHOD.
 

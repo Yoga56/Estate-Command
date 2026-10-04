@@ -259,9 +259,15 @@ CLASS zcl_est_firms IMPLEMENTATION.
         IF NOT error->get_text( ) CS `Invalid API call` OR NOT path CP '/api/*'.
           RAISE EXCEPTION error.
         ENDIF.
-        result = zcl_est_ai_http=>get( comm_scenario    = comm_scenario
-                                       outbound_service = outbound_service
-                                       path             = substring( val = path off = 4 ) ).
+        TRY.
+            result = zcl_est_ai_http=>get( comm_scenario    = comm_scenario
+                                           outbound_service = outbound_service
+                                           path             = substring( val = path off = 4 ) ).
+          CATCH zcx_est_ai INTO DATA(second).
+            " both answers: what the arrangement puts in front of the path shows in them
+            RAISE EXCEPTION NEW zcx_est_ai(
+              message = |{ error->get_text( ) }; again without /api: { second->get_text( ) }| ).
+        ENDTRY.
     ENDTRY.
   ENDMETHOD.
 

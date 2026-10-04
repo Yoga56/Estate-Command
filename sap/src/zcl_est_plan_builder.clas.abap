@@ -560,10 +560,11 @@ CLASS zcl_est_plan_builder IMPLEMENTATION.
           ENDIF.
 
         CATCH zcx_est_ai cx_sy_conversion_error INTO DATA(error).
-          " keep the first failure: it is the provider that was asked for
-          IF header-errortext IS INITIAL.
-            header-errortext = error->get_text( ).
-          ENDIF.
+          " every provider's failure, the one asked for first, each cut short
+          DATA(failure) = error->get_text( ).
+          failure = substring( val = failure len = nmin( val1 = strlen( failure ) val2 = 100 ) ).
+          header-errortext = COND #( WHEN header-errortext IS INITIAL THEN failure
+                                     ELSE |{ header-errortext }; { failure }| ).
           CONTINUE.
       ENDTRY.
 
