@@ -25,6 +25,7 @@ sap.ui.define([
   // Reduced motion in the operating system only sets the starting value of "animate";
   // the user's own switch decides from then on
   const DEFAULTS = Object.assign({
+    show: true,
     preset: "ribbon",
     gap: 4,
     thickness: 56,
@@ -61,8 +62,8 @@ sap.ui.define([
    *
    * facts:  [{ key, text }] - which of them show is config.facts
    * color:  the crew's colour, used by the "crew" palette
-   * config: { preset, rows, thickness, gap, angle, twist, twistWaves, wave, speed, fontScale, palette, facts, uppercase,
-   *           animate }; thickness is the most px a stripe gets (more stripes than fit share the room);
+   * config: { show, preset, rows, thickness, gap, angle, twist, twistWaves, wave, speed, fontScale, palette, facts, uppercase,
+   *           animate }; show off keeps the stripes away altogether; thickness is the most px a stripe gets (more stripes than fit share the room);
    *           animate off also drops the run in and out
    *         read on every frame, so a changed value shows at once; call refresh() when not animating
    */
@@ -98,6 +99,12 @@ sap.ui.define([
 
     setConfig: function (config) {
       this.setProperty("config", config, true);
+      const show = this.settings().show !== false;
+      // switched back on while a block is picked: they run in again
+      if (show && this._hidden && this._shown && this.settings().animate) {
+        this._reveal = { dir: 1, start: performance.now() };
+      }
+      this._hidden = !show;
       this.refresh();
       return this;
     },
@@ -121,7 +128,8 @@ sap.ui.define([
     /** Runs the stripes out; resolves when they are gone */
     hide: function () {
       return new Promise((resolve) => {
-        if (!this._shown || !this.settings().animate || !this._canvas) {
+        const s = this.settings();
+        if (!this._shown || !s.animate || s.show === false || !this._canvas) {
           this._shown = false;
           this._reveal = null;
           this.refresh();
@@ -177,7 +185,8 @@ sap.ui.define([
     },
 
     _wantsLoop: function () {
-      return !!this._reveal || (this._shown && this.settings().animate);
+      const s = this.settings();
+      return s.show !== false && (!!this._reveal || (this._shown && s.animate));
     },
 
     /** Draws at most FLOW_MS apart (REVEAL_MS while running in or out); waits without drawing while out of sight */
@@ -316,7 +325,7 @@ sap.ui.define([
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const rows = Math.max(1, Math.round(s.rows));
-      if (!this._shown && !this._reveal) {
+      if (s.show === false || (!this._shown && !this._reveal)) {
         return;
       }
 

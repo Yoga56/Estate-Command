@@ -263,6 +263,12 @@ sap.ui.define([
 
     // --- the block stripes: settings kept per viewer in the browser
 
+    /** Ribbons on or off, kept with the other stripe settings in this browser */
+    onStripesToggle: function () {
+      this._stripes.setProperty("/show", !this._stripes.getProperty("/show"));
+      this._stripesChanged();
+    },
+
     onStripesSettings: function (event) {
       this.byId("stripesSettings").openBy(event.getSource());
     },

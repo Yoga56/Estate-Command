@@ -51,6 +51,9 @@
             <Title text="Block {view>/selected/label}" level="H3" wrapping="false"/>
             <Text text="{view>/selected/state}" class="estMuted" wrapping="false"/>
           </VBox>
+          <Button type="Transparent" press=".onStripesToggle"
+                  icon="{= ${stripes>/show} ? 'sap-icon://hide' : 'sap-icon://show' }"
+                  tooltip="{= ${stripes>/show} ? 'Hide the ribbons' : 'Show the ribbons' }"/>
           <Button type="Transparent" icon="sap-icon://action-settings" tooltip="Configure the stripes" press=".onStripesSettings"/>
           <Button type="Transparent" icon="sap-icon://decline" tooltip="Close" press=".onBlockClose"/>
         </HBox>
@@ -337,6 +340,7 @@
                class="estPop">
         <f:SimpleForm editable="true" layout="ResponsiveGridLayout" labelSpanL="4" labelSpanM="4" labelSpanS="4"
                       backgroundDesign="Transparent">
+          <Label text="Ribbons"/><Switch state="{stripes>/show}" customTextOn="On" customTextOff="Off"/>
           <Label text="Preset"/>
           <Select selectedKey="{stripes>/preset}" change=".onStripesPreset">
             <core:Item key="ribbon" text="Ribbon"/>

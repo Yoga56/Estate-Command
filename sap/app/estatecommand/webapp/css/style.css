@@ -5,8 +5,10 @@
   --estGap: 16px;
   --estPad: 16px; /* the inner edge of every row in the panel and the block card */
   --estPanelWidth: 440px;
-  --estGlassBg: rgba(255, 255, 255, 0.74);
-  --estGlassStrong: rgba(255, 255, 255, 0.86);
+  /* one glass for everything that floats over the map: slightly see-through, one blur */
+  --estGlassBg: rgba(255, 255, 255, 0.8);
+  --estGlassStrong: var(--estGlassBg);
+  --estBlur: blur(24px) saturate(120%);
   --estInk: rgba(29, 45, 62, 0.72);
   --estGlassBorder: rgba(255, 255, 255, 0.45);
   --estGlassShadow: 0 12px 32px rgba(4, 16, 10, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.35);
@@ -18,8 +20,7 @@
 }
 @supports (background: color-mix(in srgb, red 50%, transparent)) {
   .estPage, .estPop, html.estApp .sapMPopover {
-    --estGlassBg: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 74%, transparent);
-    --estGlassStrong: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 86%, transparent);
+    --estGlassBg: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 80%, transparent);
     --estInk: color-mix(in srgb, var(--sapTextColor, #1d2d3e) 72%, transparent);
     --estGlassBorder: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 45%, transparent);
     --estPillBg: color-mix(in srgb, var(--sapButton_Background, #fff) 42%, transparent);
@@ -34,8 +35,8 @@
 /* --- glass */
 .estGlass {
   background: var(--estGlassBg);
-  -webkit-backdrop-filter: blur(24px) saturate(120%);
-  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: var(--estBlur);
+  backdrop-filter: var(--estBlur);
   border: 1px solid var(--estGlassBorder);
   border-radius: var(--estRadius);
   box-shadow: var(--estGlassShadow);
@@ -45,8 +46,6 @@
   .estGlass { background: var(--sapGroup_ContentBackground, #fff); }
 }
 .estMuted, .estMuted.sapMText { color: var(--estInk); font-size: 0.8125rem; }
-/* the panel and the block card carry the reading: nearly opaque glass */
-.estPanel.estGlass, .estBlockCard.estGlass { background: var(--estGlassStrong); }
 .estPanel .sapMLabel, .estKpiLabel.sapMText, .estPanel .sapMITBText { color: var(--estInk); }
 .estPanel .sapMText, .estBlockCard .sapMText { color: var(--sapTextColor); }
 .estPanel .estMuted.sapMText, .estBlockCard .estMuted.sapMText { color: var(--estInk); }
@@ -91,8 +90,8 @@
 .estMap .leaflet-control-scale { order: 2; }
 .estMapCtl { order: 3; position: relative; }
 .estMapBar { display: flex; flex-direction: column; overflow: hidden;
-  border-radius: 14px; background: var(--estGlassStrong); -webkit-backdrop-filter: blur(24px) saturate(120%);
-  backdrop-filter: blur(24px) saturate(120%); border: 1px solid var(--estGlassBorder); box-shadow: var(--estGlassShadow); }
+  border-radius: 14px; background: var(--estGlassStrong); -webkit-backdrop-filter: var(--estBlur);
+  backdrop-filter: var(--estBlur); border: 1px solid var(--estGlassBorder); box-shadow: var(--estGlassShadow); }
 .estMapBtn { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 0;
   background: transparent; color: var(--sapContent_IconColor, var(--sapTextColor)); cursor: pointer; transition: background 0.15s; }
 .estMapBtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -102,13 +101,13 @@
 /* scale: a squircle like the buttons; its width is the distance, drawn as a bracket inside it */
 .estMap .leaflet-control-scale-line { position: relative; box-sizing: content-box; margin: 0; padding: 5px 12px 11px;
   border: 0; border-radius: 14px; background: var(--estGlassStrong); color: var(--sapTextColor); font-size: 11px; font-weight: 600;
-  line-height: 1.1; text-align: center; text-shadow: none; -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+  line-height: 1.1; text-align: center; text-shadow: none; -webkit-backdrop-filter: var(--estBlur); backdrop-filter: var(--estBlur);
   box-shadow: var(--estGlassShadow), inset 0 0 0 1px var(--estGlassBorder); }
 .estMap .leaflet-control-scale-line::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 5px; height: 4px;
   border: 2px solid currentColor; border-top: 0; border-radius: 0 0 2px 2px; opacity: 0.8; }
 .estMapMenu { position: absolute; right: calc(100% + 8px); bottom: 0; display: flex; flex-direction: column; gap: 4px;
   min-width: 190px; padding: 6px; border-radius: 18px; background: var(--estGlassStrong);
-  -webkit-backdrop-filter: blur(24px) saturate(130%); backdrop-filter: blur(24px) saturate(130%);
+  -webkit-backdrop-filter: var(--estBlur); backdrop-filter: var(--estBlur);
   border: 1px solid var(--estGlassBorder); box-shadow: var(--estGlassShadow);
   transform-origin: right bottom; animation: estMenuIn 0.18s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .estMapMenu[hidden] { display: none; }
@@ -130,12 +129,12 @@
   stroke-linejoin: round; visibility: hidden; }
 .estMapMenuItem[aria-checked="true"] svg { visibility: visible; }
 .estMap .leaflet-control-attribution { background: var(--estGlassBg); color: var(--estInk);
-  border-radius: 999px; padding: 2px 10px; font-size: 10px; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+  border-radius: 999px; padding: 2px 10px; font-size: 10px; -webkit-backdrop-filter: var(--estBlur); backdrop-filter: var(--estBlur); }
 .estMap .leaflet-control-attribution a { color: var(--sapLinkColor, #0064d9); }
 
 .estTip.leaflet-tooltip { background: var(--estGlassStrong); color: var(--sapTextColor); border: 1px solid var(--estGlassBorder);
   border-radius: 12px; padding: 6px 10px; box-shadow: var(--estGlassShadow);
-  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); font-family: var(--sapFontFamily); }
+  -webkit-backdrop-filter: var(--estBlur); backdrop-filter: var(--estBlur); font-family: var(--sapFontFamily); }
 .estTip.leaflet-tooltip-top::before { border-top-color: var(--estGlassStrong); }
 .estTipTitle { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px; }
 .estTipTitle i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
@@ -251,7 +250,7 @@
   height: auto; padding: 0; background: none; }
 .estPage .estPanelHandle.sapMBtn .sapMBtnInner { height: 44px; min-width: 44px; padding: 0 14px 0 10px; border-radius: 14px;
   background: var(--estGlassStrong) !important; border: 1px solid var(--estGlassBorder);
-  -webkit-backdrop-filter: blur(24px) saturate(120%); backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: var(--estBlur); backdrop-filter: var(--estBlur);
   box-shadow: var(--estGlassShadow); color: var(--sapTextColor); }
 .estPage .estPanelHandle.sapMBtn .sapMBtnInner:hover { background: var(--estPillHover) !important; }
 .estPage .estPanelHandle .sapMBtnInner .sapMBtnIcon,
@@ -350,7 +349,7 @@
 
 /* --- stripes settings: the popover is glass too */
 .sapMPopover.estPop { background: var(--estGlassBg); border: 1px solid var(--estGlassBorder); border-radius: var(--estRadius);
-  box-shadow: var(--estGlassShadow); -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: var(--estGlassShadow); -webkit-backdrop-filter: var(--estBlur); backdrop-filter: var(--estBlur);
   overflow: hidden; }
 .estPop .sapMPopoverCont, .estPop .sapMPopoverHeader, .estPop .sapMPopoverFooter, .estPop .sapMIBar, .estPop .sapUiForm,
 .estPop .sapMPopoverWrapper { background: transparent !important; box-shadow: none !important; }
@@ -358,7 +357,7 @@
 /* --- dropdowns, value helps and the date picker: the same glass, lists with rounded rows */
 html.estApp .sapMPopover:not(.estPop) { background: var(--estGlassStrong); border: 1px solid var(--estGlassBorder);
   border-radius: 16px; overflow: hidden; box-shadow: var(--estGlassShadow);
-  -webkit-backdrop-filter: blur(24px) saturate(130%); backdrop-filter: blur(24px) saturate(130%); }
+  -webkit-backdrop-filter: var(--estBlur); backdrop-filter: var(--estBlur); }
 html.estApp .sapMPopover:not(.estPop) .sapMPopoverArr { display: none; }
 html.estApp .sapMPopover :is(.sapMPopoverCont, .sapMPopoverHeader, .sapMPopoverFooter, .sapMPopoverWrapper, .sapMIBar,
   .sapMList, .sapMListUl, .sapMListItems, .sapMSelectList, .sapMListDummyArea, .sapMValueStateHeaderRoot, .sapUiCal,
