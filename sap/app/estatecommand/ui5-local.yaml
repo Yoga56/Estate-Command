@@ -1,5 +1,5 @@
-# SAP Business Application Studio, client 80 (development). Destination my402244 is the same
-# BTP destination the CFO cockpit deploys through; ui5-local.yaml runs without BAS.
+# Client 80 from a local machine (not BAS): signs in
+# through the browser (reentrance ticket), no destination needed.
 specVersion: "3.1"
 metadata:
   name: zestate.command
@@ -18,7 +18,8 @@ server:
           version: 1.136.0
         backend:
           - path: /sap
-            destination: my402244
+            url: https://my402244.s4hana.cloud.sap
+            authenticationType: reentranceTicket
     - name: fiori-tools-appreload
       afterMiddleware: compression
       configuration:

@@ -185,15 +185,28 @@ tomorrow is 2025-05-24, as in the Python app. With the ArcGIS export present the
 their polygons; without it they are placed on their road segments and adjacency falls back to
 centroids closer than 600 m.
 
-### 6. UI5 app
+### 6. UI5 app (SAP Business Application Studio)
 
 ```bash
-cd sap/app/estatecommand
+git clone -b claude/zdemo-fscm-ai-sap-cloud-y6dued https://github.com/yoga56/estate-command.git
+cd estate-command/sap/app/estatecommand
 npm install
-# set your system's host in ui5.yaml and ui5-deploy.yaml
-npm start            # local, against the system, sign-in through the browser
-npm run deploy       # BSP application ZEST_COMMAND in package ZESTATE_CMD
+npm start          # preview against client 80 through destination my402244
+npm run deploy     # BSP application ZEST_COMMAND in package ZESTATE_CMD (client 80)
 ```
+
+`ui5-local.yaml` / `npm run start-local` run the same from a local machine without BAS
+(reentrance ticket); `ui5-100.yaml` / `npm run start-100` preview against client 100.
+
+Then, to put it on the launchpad (ADT, client 80):
+
+1. *New → Other → Launchpad App Descriptor Item* `ZEST_COMMAND_UI5R`: app ID `zestate.command`,
+   semantic object `EstatePlan`, action `display`, tile title *Estate Command*.
+2. *IAM App* `ZEST_COMMAND` of type *UI5 Application* (shown as `ZEST_COMMAND_EXT`): UI5 app
+   `ZEST_COMMAND_UI5R`; on *Services* add OData V4 service binding `ZUI_EST_CMD_O4`. **Publish
+   Locally**.
+3. *Business Catalog* `ZEST_COMMAND_BC`: add the IAM app. **Publish Locally**.
+4. Client 100, *Maintain Business Roles*: add `ZEST_COMMAND_BC` to a role, assign your user.
 
 The map is drawn as SVG from `ZI_EST_BLOCK` - no external map library, so it runs under the
 launchpad's content security policy.
