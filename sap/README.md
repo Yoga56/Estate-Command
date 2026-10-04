@@ -146,7 +146,11 @@ inactive by `ZCL_EST_SEED`; it is never used as an AI provider). `ZCL_EST_FIRMS`
 (Suomi NPP, NOAA-20, NOAA-21) and MODIS near-real-time products for the box around the blocks,
 keeps the hotspots within `fire_radius_km` (register, default 10 km) of the nearest block over
 `fire_days` (default 3, at most 5), and the app draws them on the map with a strip in the plan panel. Without
-the arrangement or the key the strip says the fires are unknown.
+the arrangement or the key the strip says the fires are unknown. `ZCL_EST_SEED` also builds sample estate
+`FIRE`: the same 40 blocks, centred on the densest cluster of VIIRS hotspots in Sumatra over the
+last two days (the Malay peninsula filtered out along the Strait of Malacca), so the fire layer
+has something to show; rerun the seed to follow the fires. Without FIRMS it is placed at a
+hotspot of 1 October 2026 in eastern Jambi.
 
 ### 4. Configure and check
 

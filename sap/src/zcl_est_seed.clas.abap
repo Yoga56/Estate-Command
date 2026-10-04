@@ -10,6 +10,9 @@ CLASS zcl_est_seed DEFINITION
     "!   - estate SMPL: a small sample estate of 40 blocks with crews, attendance, a harvest
     "!     ledger, upkeep rounds and stores records, so every app has something to show before
     "!     the estate's own extracts are imported. Running again rebuilds SMPL only.
+    "!   - estate FIRE: the same sample estate, centred on the densest cluster of NASA FIRMS
+    "!     hotspots in Sumatra over the last two days, so the fire layer has something to show.
+    "!     Without FIRMS it is placed at a hotspot of 1 October 2026 in Jambi.
     "! The sample is generated from a fixed sequence: every run writes the same estate, dated
     "! up to yesterday.
     "!
@@ -28,6 +31,7 @@ CLASS zcl_est_seed DEFINITION
   PROTECTED SECTION.
   PRIVATE SECTION.
     CONSTANTS sample TYPE zest_estate-estate VALUE 'SMPL'.
+    CONSTANTS fire_sample TYPE zest_estate-estate VALUE 'FIRE'.
     "! a sample block is 300 m east-west by 1,000 m north-south (30 ha), the usual Indonesian grid
     CONSTANTS block_lon_degrees TYPE decfloat34 VALUE '0.0027'.
     CONSTANTS block_lat_degrees TYPE decfloat34 VALUE '0.009'.
@@ -43,8 +47,21 @@ CLASS zcl_est_seed DEFINITION
       RETURNING VALUE(result) TYPE i.
     METHODS assumptions
       RETURNING VALUE(result) TYPE i.
+    "! a sample estate of 2 divisions of 4 x 5 blocks with the south-west corner at WEST_LON / SOUTH_LAT
     METHODS sample_estate
+      IMPORTING id            TYPE zest_estate-estate DEFAULT sample
+                name          TYPE csequence DEFAULT 'Sample Estate (generated, Riau)'
+                west_lon      TYPE decfloat34 DEFAULT origin_lon
+                south_lat     TYPE decfloat34 DEFAULT origin_lat
       RETURNING VALUE(result) TYPE string.
+    "! sample estate FIRE on the densest hotspot cluster in Sumatra
+    METHODS fire_sample_estate
+      RETURNING VALUE(result) TYPE string.
+    "! south-west of the Strait of Malacca's midline: Sumatra, not the Malay peninsula
+    CLASS-METHODS in_sumatra
+      IMPORTING lat           TYPE f
+                lon           TYPE f
+      RETURNING VALUE(result) TYPE abap_bool.
     METHODS sample_stores
       RETURNING VALUE(result) TYPE i.
     "! next number of the fixed sequence, from 0 to BELOW - 1
@@ -81,6 +98,8 @@ CLASS zcl_est_seed IMPLEMENTATION.
     IF rebuild_sample = abap_true.
       APPEND sample_estate( ) TO result.
       APPEND |{ sample_stores( ) } sample stores record(s) written to ZEST_MM_MOCK| TO result.
+      " after SMPL and its stores, so their generated figures stay as they were
+      APPEND fire_sample_estate( ) TO result.
     ENDIF.
   ENDMETHOD.
 
@@ -91,7 +110,7 @@ CLASS zcl_est_seed IMPLEMENTATION.
         kind           = if_apj_dt_exec_object=>parameter
         datatype       = 'C'
         length         = 1
-        param_text     = 'Rebuild sample estate SMPL'
+        param_text     = 'Rebuild sample estates SMPL and FIRE'
         checkbox_ind   = abap_true
         changeable_ind = abap_true ) ).
     et_parameter_val = VALUE #( ( selname = sample_parameter kind = if_apj_dt_exec_object=>parameter
@@ -266,18 +285,18 @@ CLASS zcl_est_seed IMPLEMENTATION.
     DATA(data_end) = CONV d( today - 1 ).
     GET TIME STAMP FIELD DATA(now).
 
-    DELETE FROM zest_block WHERE estate = @sample.
-    DELETE FROM zest_crew WHERE estate = @sample.
-    DELETE FROM zest_attend WHERE estate = @sample.
-    DELETE FROM zest_workord WHERE estate = @sample.
-    DELETE FROM zest_upkeep WHERE estate = @sample.
-    DELETE FROM zest_plan_l WHERE plan_uuid IN ( SELECT plan_uuid FROM zest_plan WHERE estate = @sample ).
-    DELETE FROM zest_plan WHERE estate = @sample.
+    DELETE FROM zest_block WHERE estate = @id.
+    DELETE FROM zest_crew WHERE estate = @id.
+    DELETE FROM zest_attend WHERE estate = @id.
+    DELETE FROM zest_workord WHERE estate = @id.
+    DELETE FROM zest_upkeep WHERE estate = @id.
+    DELETE FROM zest_plan_l WHERE plan_uuid IN ( SELECT plan_uuid FROM zest_plan WHERE estate = @id ).
+    DELETE FROM zest_plan WHERE estate = @id.
 
-    MODIFY zest_estate FROM @( VALUE zest_estate( estate                = sample
-                                        estate_name           = 'Sample Estate (generated, Riau)'
-                                        latitude              = '1.6030'
-                                        longitude             = '100.2015'
+    MODIFY zest_estate FROM @( VALUE zest_estate( estate                = id
+                                        estate_name           = name
+                                        latitude              = south_lat + 2 * block_lat_degrees
+                                        longitude             = west_lon + 5 * block_lon_degrees
                                         currency              = 'IDR'
                                         default_provider      = 'GEMINI_38F'
                                         is_sample             = abap_true
@@ -296,8 +315,8 @@ CLASS zcl_est_seed IMPLEMENTATION.
         DATA(number) = sy-index.
         DATA(column) = ( number - 1 ) MOD 5.
         DATA(row) = ( number - 1 ) DIV 5.
-        DATA(west) = origin_lon + ( ( division - 1 ) * 5 + column ) * block_lon_degrees.
-        DATA(south) = origin_lat + row * block_lat_degrees.
+        DATA(west) = west_lon + ( ( division - 1 ) * 5 + column ) * block_lon_degrees.
+        DATA(south) = south_lat + row * block_lat_degrees.
         DATA(east) = west + block_lon_degrees.
         DATA(north) = south + block_lat_degrees.
         DATA(ring) = VALUE zcl_est_geo=>ty_ring( ( lon = CONV f( west ) lat = CONV f( south ) )
@@ -309,7 +328,7 @@ CLASS zcl_est_seed IMPLEMENTATION.
         DATA(ha) = CONV decfloat34( 27 + next( 3 ) ).
         DATA(planted) = 2008 + next( 12 ).
         APPEND VALUE #(
-          estate          = sample
+          estate          = id
           block_key       = |{ division }-{ number }|
           division        = |{ division }|
           block_code      = |{ number }|
@@ -328,16 +347,16 @@ CLASS zcl_est_seed IMPLEMENTATION.
           geometry        = zcl_est_geo=>format_ring( ring ) ) TO blocks.
       ENDDO.
 
-      APPEND VALUE #( estate = sample crew_code = |G{ division }-01| crew_type = 'harvest' crew_name = |Gang { division }-01|
+      APPEND VALUE #( estate = id crew_code = |G{ division }-01| crew_type = 'harvest' crew_name = |Gang { division }-01|
                       division = |{ division }| establishment = 26 harvesters = 14 home_block = |{ division }-1| ) TO crews.
-      APPEND VALUE #( estate = sample crew_code = |G{ division }-02| crew_type = 'harvest' crew_name = |Gang { division }-02|
+      APPEND VALUE #( estate = id crew_code = |G{ division }-02| crew_type = 'harvest' crew_name = |Gang { division }-02|
                       division = |{ division }| establishment = 24 harvesters = 13 home_block = |{ division }-3| ) TO crews.
-      APPEND VALUE #( estate = sample crew_code = |G{ division }-03| crew_type = 'harvest' crew_name = |Gang { division }-03|
+      APPEND VALUE #( estate = id crew_code = |G{ division }-03| crew_type = 'harvest' crew_name = |Gang { division }-03|
                       division = |{ division }| establishment = 25 harvesters = 14 home_block = |{ division }-5| ) TO crews.
-      APPEND VALUE #( estate = sample crew_code = |U{ division }-01| crew_type = 'upkeep' crew_name = |Upkeep { division }-01|
+      APPEND VALUE #( estate = id crew_code = |U{ division }-01| crew_type = 'upkeep' crew_name = |Upkeep { division }-01|
                       division = |{ division }| establishment = 18 home_block = |{ division }-11| ) TO crews.
     ENDDO.
-    APPEND VALUE #( estate = sample crew_code = 'S-01' crew_type = 'spray' crew_name = 'Spray team 1'
+    APPEND VALUE #( estate = id crew_code = 'S-01' crew_type = 'spray' crew_name = 'Spray team 1'
                     establishment = 10 home_block = '1-16' ) TO crews.
 
     " 45 days of attendance; Sundays thin
@@ -346,7 +365,7 @@ CLASS zcl_est_seed IMPLEMENTATION.
         DATA(day) = CONV d( data_end - 45 + sy-index ).
         DATA(weekday) = ( day - CONV d( '19000101' ) ) MOD 7.   " 0 = Monday
         DATA(rate) = COND i( WHEN weekday = 6 THEN 55 + next( 15 ) ELSE 80 + next( 16 ) ).
-        APPEND VALUE #( estate = sample crew_code = crew-crew_code work_date = day
+        APPEND VALUE #( estate = id crew_code = crew-crew_code work_date = day
                         on_roll = crew-establishment present = crew-establishment * rate / 100 ) TO attendance.
       ENDDO.
     ENDLOOP.
@@ -365,7 +384,7 @@ CLASS zcl_est_seed IMPLEMENTATION.
         DATA(actual) = round( val = planned * share dec = 0 ).
         DATA(gang) = block-gang_code.
         APPEND VALUE #(
-          estate           = sample
+          estate           = id
           order_id         = |WO-{ day DATE = RAW }-H-{ order_no WIDTH = 4 ALIGN = RIGHT PAD = '0' }|
           work_date        = day
           operation        = 'harvest'
@@ -384,13 +403,13 @@ CLASS zcl_est_seed IMPLEMENTATION.
       ENDDO.
 
       " upkeep rounds: spread so a share of blocks falls due in the next days
-      APPEND VALUE #( estate = sample block_key = block-block_key activity = 'pruning'
+      APPEND VALUE #( estate = id block_key = block-block_key activity = 'pruning'
                       last_done = data_end - 150 - next( 110 ) interval_days = 240 ) TO upkeep.
-      APPEND VALUE #( estate = sample block_key = block-block_key activity = 'circle_weeding'
+      APPEND VALUE #( estate = id block_key = block-block_key activity = 'circle_weeding'
                       last_done = data_end - 40 - next( 45 ) interval_days = 75 ) TO upkeep.
-      APPEND VALUE #( estate = sample block_key = block-block_key activity = 'path_upkeep'
+      APPEND VALUE #( estate = id block_key = block-block_key activity = 'path_upkeep'
                       last_done = data_end - 60 - next( 60 ) interval_days = 110 ) TO upkeep.
-      APPEND VALUE #( estate = sample block_key = block-block_key activity = 'spraying'
+      APPEND VALUE #( estate = id block_key = block-block_key activity = 'spraying'
                       last_done = data_end - 60 - next( 50 ) interval_days = 100 ) TO upkeep.
     ENDLOOP.
 
@@ -400,9 +419,97 @@ CLASS zcl_est_seed IMPLEMENTATION.
     INSERT zest_workord FROM TABLE @orders.
     INSERT zest_upkeep FROM TABLE @upkeep.
 
-    result = |Estate { sample }: { lines( blocks ) } blocks, { lines( crews ) } crews, | &&
+    result = |Estate { id }: { lines( blocks ) } blocks, { lines( crews ) } crews, | &&
                 |{ lines( attendance ) } attendance days, { lines( orders ) } work orders, { lines( upkeep ) } upkeep rounds; | &&
                 |data ends { data_end DATE = ISO }, so tomorrow is { today DATE = ISO }|.
+  ENDMETHOD.
+
+
+  METHOD fire_sample_estate.
+    TYPES:
+      BEGIN OF ty_cell,
+        key   TYPE string,
+        count TYPE i,
+        frp   TYPE decfloat34,
+        lat   TYPE decfloat34,
+        lon   TYPE decfloat34,
+      END OF ty_cell.
+    DATA cells TYPE HASHED TABLE OF ty_cell WITH UNIQUE KEY key.
+    DATA best TYPE ty_cell.
+
+    " fallback: a VIIRS NOAA-20 hotspot of 2026-10-01 on the peat of eastern Jambi
+    DATA(lat) = CONV decfloat34( '-0.9870' ).
+    DATA(lon) = CONV decfloat34( '103.3310' ).
+    DATA(found) = `placed at a FIRMS hotspot of 2026-10-01 in Jambi`.
+
+    TRY.
+        DATA(hotspots) = zcl_est_firms=>read_area( west = 95 south = -6 east = 106 north = 6 days = 2 ).
+        DATA(in_island) = 0.
+        LOOP AT hotspots INTO DATA(hotspot).
+          CHECK in_sumatra( lat = CONV f( hotspot-latitude ) lon = CONV f( hotspot-longitude ) ).
+          in_island = in_island + 1.
+          " cells of a tenth of a degree, about 11 km
+          DATA(key) = |{ floor( hotspot-latitude * 10 ) }/{ floor( hotspot-longitude * 10 ) }|.
+          READ TABLE cells ASSIGNING FIELD-SYMBOL(<cell>) WITH TABLE KEY key = key.
+          IF sy-subrc <> 0.
+            INSERT VALUE #( key = key ) INTO TABLE cells ASSIGNING <cell>.
+          ENDIF.
+          <cell>-count = <cell>-count + 1.
+          <cell>-frp   = <cell>-frp + hotspot-frp.
+          <cell>-lat   = <cell>-lat + hotspot-latitude.
+          <cell>-lon   = <cell>-lon + hotspot-longitude.
+        ENDLOOP.
+        LOOP AT cells INTO DATA(cell).
+          IF cell-count > best-count OR ( cell-count = best-count AND cell-frp > best-frp ).
+            best = cell.
+          ENDIF.
+        ENDLOOP.
+        IF best-count > 0.
+          lat = best-lat / best-count.
+          lon = best-lon / best-count.
+          found = |densest cluster: { best-count } hotspot(s) within a tenth of a degree, { round( val = best-frp dec = 1 ) } MW; | &&
+                  |{ in_island } hotspot(s) in Sumatra over the last 2 days|.
+        ELSE.
+          found = |no hotspot in Sumatra over the last 2 days; { found }|.
+        ENDIF.
+      CATCH zcx_est_ai INTO DATA(error).
+        found = |FIRMS not read ({ error->get_text( ) }); { found }|.
+    ENDTRY.
+
+    " the cluster in the middle of the estate: some hotspots fall inside blocks, the rest nearby
+    DATA(today) = cl_abap_context_info=>get_system_date( ).
+    result = sample_estate( id        = fire_sample
+                            name      = |Fire Watch Sample ({ today DATE = ISO }, Sumatra)|
+                            west_lon  = lon - 5 * block_lon_degrees
+                            south_lat = lat - 2 * block_lat_degrees ).
+    result = |{ result }; centred on { lat DECIMALS = 4 }, { lon DECIMALS = 4 } - { found }|.
+  ENDMETHOD.
+
+
+  METHOD in_sumatra.
+    TYPES:
+      BEGIN OF ty_point,
+        lon TYPE f,
+        lat TYPE f,
+      END OF ty_point,
+      ty_points TYPE STANDARD TABLE OF ty_point WITH EMPTY KEY.
+    " midline of the strait, north-west to south-east: Aceh / Penang to Riau / Singapore
+    DATA(midline) = VALUE ty_points(
+      ( lon = '98.8' lat = '5.5' ) ( lon = '100.3' lat = '3.6' ) ( lon = '101.6' lat = '2.3' )
+      ( lon = '102.8' lat = '1.6' ) ( lon = '103.6' lat = '1.15' ) ).
+    DATA(limit) = CONV f( '6.0' ).
+    IF lon >= midline[ lines( midline ) ]-lon.
+      limit = midline[ lines( midline ) ]-lat.
+    ELSEIF lon > midline[ 1 ]-lon.
+      LOOP AT midline INTO DATA(a) FROM 1 TO lines( midline ) - 1.
+        DATA(b) = midline[ sy-tabix + 1 ].
+        IF lon >= a-lon AND lon <= b-lon.
+          limit = a-lat + ( b-lat - a-lat ) * ( lon - a-lon ) / ( b-lon - a-lon ).
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+    result = xsdbool( lat < limit ).
   ENDMETHOD.
 
 

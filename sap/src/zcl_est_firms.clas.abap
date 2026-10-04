@@ -57,6 +57,17 @@ CLASS zcl_est_firms DEFINITION
       RETURNING VALUE(result) TYPE string
       RAISING   zcx_est_ai.
 
+    "! The VIIRS hotspots (three satellites) of the last DAYS in a box, unfiltered - to find where
+    "! it burns. Raises only when no product could be read.
+    CLASS-METHODS read_area
+      IMPORTING west          TYPE f
+                south         TYPE f
+                east          TYPE f
+                north         TYPE f
+                days          TYPE i
+      RETURNING VALUE(result) TYPE ty_hotspots
+      RAISING   zcx_est_ai.
+
     "! FIRMS' own answer on the key (/mapserver/mapkey_status): its transaction limit and use, or why not
     CLASS-METHODS check_key
       RETURNING VALUE(result) TYPE string.
@@ -215,6 +226,28 @@ CLASS zcl_est_firms IMPLEMENTATION.
                                  |{ hotspots[ 1 ]-nearest_block }| ).
     IF failures IS NOT INITIAL.
       result-status = |{ result-status } (not read: { concat_lines_of( table = failures sep = `; ` ) })|.
+    ENDIF.
+  ENDMETHOD.
+
+
+  METHOD read_area.
+    DATA failure TYPE string.
+    DATA(key) = map_key( ).
+    DATA(area) = |{ coordinate( west ) },{ coordinate( south ) },{ coordinate( east ) },{ coordinate( north ) }|.
+    DATA(range) = nmax( val1 = 1 val2 = nmin( val1 = 5 val2 = days ) ).
+    DATA(read) = abap_false.
+    SPLIT products AT ',' INTO TABLE DATA(product_list).
+    LOOP AT product_list INTO DATA(product) WHERE table_line CP 'VIIRS*'.
+      TRY.
+          APPEND LINES OF parse( csv = fetch( request_path( product = product area = area days = range key = key ) )
+                                 product = product ) TO result.
+          read = abap_true.
+        CATCH zcx_est_ai INTO DATA(error).
+          failure = |{ product }: { error->get_text( ) }|.
+      ENDTRY.
+    ENDLOOP.
+    IF read = abap_false.
+      RAISE EXCEPTION NEW zcx_est_ai( message = failure ).
     ENDIF.
   ENDMETHOD.
 
