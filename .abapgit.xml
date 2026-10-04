@@ -11,6 +11,14 @@
     <item>/README.md</item>
     <item>/package.json</item>
     <item>/sap/src/zui_est_cmd_o4.srvb.xml</item>
+    <item>/sap/src/*.sco2.xml</item>
+    <item>/sap/src/*.sia1.xml</item>
+    <item>/sap/src/*.sia6.xml</item>
+    <item>/sap/src/*.sia7.xml</item>
+    <item>/sap/src/*.sush.xml</item>
+    <item>/sap/src/*.uiad.xml</item>
+    <item>/sap/src/*.wapa.xml</item>
+    <item>/sap/src/*.wapa.*.xml</item>
    </IGNORE>
   </DATA>
  </asx:values>
