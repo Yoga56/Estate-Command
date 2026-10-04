@@ -27,6 +27,15 @@ CLASS lhc_import IMPLEMENTATION.
       RESULT DATA(imports).
 
     LOOP AT imports INTO DATA(import).
+      " the parsed rows are written in the save phase, which a draft never reaches
+      IF import-%is_draft = if_abap_behv=>mk-on.
+        APPEND VALUE #( %tky = import-%tky ) TO failed-import.
+        APPEND VALUE #( %tky = import-%tky
+                        %msg = new_message_with_text( severity = if_abap_behv_message=>severity-error
+                                                      text     = `Save the import first, then load it` ) )
+          TO reported-import.
+        CONTINUE.
+      ENDIF.
       TRY.
           IF import-Attachment IS INITIAL.
             RAISE EXCEPTION NEW zcx_est_ai( message = `Upload a file first` ).

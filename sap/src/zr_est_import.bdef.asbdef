@@ -1,10 +1,12 @@
 managed implementation in class ZBP_R_EST_IMPORT unique;
 strict ( 2 );
+with draft;
 
 define behavior for ZR_EST_IMPORT alias Import
 persistent table zest_import
+draft table zest_import_d
 with additional save
-lock master
+lock master total etag LastChangedAt
 authorization master ( global )
 etag master LocalLastChangedAt
 {
@@ -32,6 +34,12 @@ etag master LocalLastChangedAt
 
   // parses the uploaded CSV and replaces the estate's rows of that kind
   action Load result [1] $self;
+
+  draft action Activate optimized;
+  draft action Discard;
+  draft action Edit;
+  draft action Resume;
+  draft determine action Prepare;
 
   mapping for zest_import
   {

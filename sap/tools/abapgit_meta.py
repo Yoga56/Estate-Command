@@ -111,6 +111,9 @@ TABLES = {
         ("SAFETY_STOCK", "DEC 15 3"), ("ROUNDING", "DEC 15 3"), ("PRICE", "DEC 15 2")]),
 }
 
+# Business objects edited in Fiori elements: they need a draft table (Fiori elements V4 edits drafts)
+DRAFTS = ["ZEST_AI_PROV", "ZEST_ESTATE", "ZEST_ASSUMP", "ZEST_IMPORT"]
+
 # name: (description, category) ; category None = normal, "40" exception, "06" behavior pool
 CLASSES = {
     "ZCX_EST_AI": ("Estate Command: AI and integration error", "40"),
@@ -245,26 +248,46 @@ def _field(name: str, spec: str) -> str:
     return "    <DD03P>\n" + "\n".join(lines) + "\n    </DD03P>\n"
 
 
-def table(name: str, text: str, fields: list) -> str:
+DRAFT_INCLUDE = ("    <DD03P>\n     <FIELDNAME>.INCLUDE</FIELDNAME>\n     <ADMINFIELD>0</ADMINFIELD>\n"
+                 "     <PRECFIELD>SYCH_BDL_DRAFT_ADMIN_INC</PRECFIELD>\n     <MASK>      S</MASK>\n"
+                 "     <DDTEXT>Standard Include for Draft Administration (BDL Syntax Check)</DDTEXT>\n"
+                 "     <COMPTYPE>S</COMPTYPE>\n     <GROUPNAME>%ADMIN</GROUPNAME>\n    </DD03P>\n")
+
+
+def draft_fields(active: str) -> list:
+    """Draft table fields: the CDS element names of the active table's fields, client MANDT."""
+    out = []
+    for n, spec in TABLES[active][1]:
+        key = n.startswith("*")
+        bare = n.lstrip("*")
+        if bare == "CLIENT":
+            out.append(("*MANDT", "@MANDT"))
+            continue
+        out.append((("*" if key else "") + bare.replace("_", ""), spec))
+    return out
+
+
+def table(name: str, text: str, fields: list, draft: bool = False) -> str:
     body = ("   <DD02V>\n"
             f"    <TABNAME>{name}</TABNAME>\n"
             "    <DDLANGUAGE>E</DDLANGUAGE>\n"
             "    <TABCLASS>TRANSP</TABCLASS>\n"
             "    <CLIDEP>X</CLIDEP>\n"
+            + ("    <LANGDEP>X</LANGDEP>\n" if draft else "") +
             f"    <DDTEXT>{text}</DDTEXT>\n"
             "    <MASTERLANG>E</MASTERLANG>\n"
             "    <CONTFLAG>A</CONTFLAG>\n"
-            "    <EXCLASS>1</EXCLASS>\n"
+            f"    <EXCLASS>{4 if draft else 1}</EXCLASS>\n"
             "   </DD02V>\n"
             "   <DD09L>\n"
             f"    <TABNAME>{name}</TABNAME>\n"
             "    <AS4LOCAL>A</AS4LOCAL>\n"
-            "    <TABKAT>0</TABKAT>\n"
-            "    <TABART>APPL0</TABART>\n"
+            f"    <TABKAT>{4 if draft else 0}</TABKAT>\n"
+            f"    <TABART>{'APPL1' if draft else 'APPL0'}</TABART>\n"
             "    <BUFALLOW>N</BUFALLOW>\n"
             "   </DD09L>\n"
             "   <DD03P_TABLE>\n"
-            + "".join(_field(n, s) for n, s in fields) +
+            + "".join(_field(n, s) for n, s in fields) + (DRAFT_INCLUDE if draft else "") +
             "   </DD03P_TABLE>\n")
     return _wrap("LCL_OBJECT_TABL", body)
 
@@ -417,6 +440,9 @@ def main() -> None:
     out = {"package.devc.xml": PACKAGE}
     for n, (t, f) in TABLES.items():
         out[f"{n.lower()}.tabl.xml"] = table(n, t, f)
+    for active in DRAFTS:
+        name = active + "_D"
+        out[f"{name.lower()}.tabl.xml"] = table(name, f"Draft table for {active}", draft_fields(active), draft=True)
     for n, (t, c) in CLASSES.items():
         out[f"{n.lower()}.clas.xml"] = clas(n, t, c)
     for n, t in INTERFACES.items():

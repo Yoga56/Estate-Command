@@ -1,9 +1,11 @@
 managed implementation in class ZBP_R_EST_ESTATE unique;
 strict ( 2 );
+with draft;
 
 define behavior for ZR_EST_ESTATE alias Estate
 persistent table zest_estate
-lock master
+draft table zest_estate_d
+lock master total etag LastChangedAt
 authorization master ( global )
 etag master LocalLastChangedAt
 {
@@ -20,6 +22,12 @@ etag master LocalLastChangedAt
   create;
   update;
   delete;
+
+  draft action Activate optimized;
+  draft action Discard;
+  draft action Edit;
+  draft action Resume;
+  draft determine action Prepare;
 
   mapping for zest_estate
   {

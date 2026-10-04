@@ -1,9 +1,11 @@
 managed implementation in class ZBP_R_EST_ASSUMP unique;
 strict ( 2 );
+with draft;
 
 define behavior for ZR_EST_ASSUMP alias Assumption
 persistent table zest_assump
-lock master
+draft table zest_assump_d
+lock master total etag LastChangedAt
 authorization master ( global )
 etag master LocalLastChangedAt
 {
@@ -33,6 +35,12 @@ etag master LocalLastChangedAt
   // a changed value is badged as the client's; back at the default it keeps the shipped source
   determination MarkSource on modify { field AssumptionValue; }
   action ResetToDefault result [1] $self;
+
+  draft action Activate optimized;
+  draft action Discard;
+  draft action Edit;
+  draft action Resume;
+  draft determine action Prepare { validation CheckRange; };
 
   mapping for zest_assump
   {

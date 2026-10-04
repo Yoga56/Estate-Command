@@ -1,9 +1,11 @@
 managed implementation in class ZBP_R_EST_AI_PROV unique;
 strict ( 2 );
+with draft;
 
 define behavior for ZR_EST_AI_PROV alias Provider
 persistent table zest_ai_prov
-lock master
+draft table zest_ai_prov_d
+lock master total etag LastChangedAt
 authorization master ( global )
 etag master LocalLastChangedAt
 {
@@ -22,6 +24,12 @@ etag master LocalLastChangedAt
   create;
   update;
   delete;
+
+  draft action Activate optimized;
+  draft action Discard;
+  draft action Edit;
+  draft action Resume;
+  draft determine action Prepare;
 
   mapping for zest_ai_prov
   {

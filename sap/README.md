@@ -146,7 +146,7 @@ without it (set rain on a replan to override).
      assignment, why, weather, decision log, work document, AI run and evidence. **Accept**,
      **Reject**, **Defer**, **Replan**, **Refresh AI Words**, **Draft Work Document**, **Ask**,
      **Did It Work?**; **Shift Handover** on the list.
-   - *Assumption* → change a value, save: the next plan is priced with it. **Back to Default**.
+   - *Assumption* → **Edit**, change a value, **Save**: the next plan is priced with it. **Back to Default**.
    - *Stores* → filter on an estate: what to order, by when, and why.
    - *Estate* → set the plant (S/4 MM data), coordinates (rain forecast), default provider and
      the day the data ends.
@@ -164,8 +164,9 @@ CFO cockpit's keys are maintained in client 100. Code is shared; table contents 
    SMPL* ticked) → run once. Its application log shows the provider rows, any provider still
    without a key, the register and the sample estate. Keys are copied from `ZFSCM_AI_PROV` of
    client 100.
-3. Keys or models to change: entity *AIProvider* of `ZUI_EST_CMD_O4` (create, change, delete
-   provider rows; `ApiKey` blank means arrangement property `API_KEY`).
+3. Keys or models to change: entity *AIProvider* of `ZUI_EST_CMD_O4` → row → **Edit** → `ApiKey`
+   → **Save** (`ApiKey` blank means arrangement property `API_KEY`). Provider, Estate, Assumption
+   and DataImport are draft BOs (draft tables `ZEST_*_D`); an import is **Load**ed after it is saved.
 4. *Application Jobs* → template `ZEST_PLAN_JOB_T` → run once: a plan per operation for every
    estate; the Plan app shows them with the model's words, or status `F` and the reason.
 5. UI5 app against client 100: `npm run start-100` (destination `my402225`). There is no deploy
