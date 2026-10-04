@@ -130,6 +130,8 @@ CLASSES = {
     "ZCL_EST_DEMAND": ("Estate Command: what is due tomorrow", None),
     "ZCL_EST_SCHEDULER": ("Estate Command: tomorrow's assignment", None),
     "ZCL_EST_WEATHER": ("Estate Command: Open-Meteo forecast", None),
+    "ZCL_EST_FIRMS": ("Estate Command: NASA FIRMS fire hotspots", None),
+    "ZCL_EST_FIRE_QUERY": ("Estate Command: fire hotspot query provider", None),
     "ZCL_EST_AUDIT": ("Estate Command: figure audit", None),
     "ZCL_EST_PLAN_BUILDER": ("Estate Command: plan with AI words", None),
     "ZCL_EST_PLAN_JOB": ("Application job: tomorrow's plans", None),
@@ -163,6 +165,7 @@ DDLS = {
     "ZR_EST_IMPORT": "Data Import",
     "ZC_EST_IMPORT": "Data Import",
     "ZI_EST_STORES": "Stores: What to Order",
+    "ZI_EST_FIRE": "Fire Hotspot",
     "ZA_EST_GEN_PLAN": "Generate Plan Parameters",
     "ZA_EST_REPLAN": "Replan Parameters",
     "ZA_EST_PROVIDER": "AI Provider Parameter",
@@ -461,6 +464,8 @@ def main() -> None:
     for n, d in SRVB.items():
         out[f"{n.lower()}.srvb.xml"] = srvb(n, d)
     for name, text in out.items():
+        if name.endswith(".xml"):
+            text = text.replace("'", "&apos;")  # as ADT serializes apostrophes in texts
         with open(SRC / name, "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
     print(f"{len(out)} files written to {SRC}")

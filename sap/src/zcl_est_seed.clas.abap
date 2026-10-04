@@ -73,6 +73,10 @@ CLASS zcl_est_seed IMPLEMENTATION.
     LOOP AT keyless INTO DATA(provider) WHERE api_key IS INITIAL.
       APPEND |  { provider-provider_id }: no key in the row; it needs arrangement property API_KEY| TO result.
     ENDLOOP.
+    SELECT SINGLE api_key FROM zest_ai_prov WHERE provider_id = @zcl_est_firms=>key_row INTO @DATA(firms_key).
+    IF firms_key IS INITIAL.
+      APPEND |  { zcl_est_firms=>key_row }: no NASA FIRMS map key yet - enter it as the row's API key| TO result.
+    ENDIF.
     APPEND |{ assumptions( ) } assumption(s) added to ZEST_ASSUMP| TO result.
     IF rebuild_sample = abap_true.
       APPEND sample_estate( ) TO result.
@@ -174,7 +178,16 @@ CLASS zcl_est_seed IMPLEMENTATION.
         model_id         = 'seed-1-6-250615'
         comm_scenario    = 'ZCA_BYTEPLUS_OUT'
         outbound_service = 'ZCA_BYTEPLUS_REST'
-        api_path         = '/api/v3/chat/completions' ) ).
+        api_path         = '/api/v3/chat/completions' )
+      " not an AI provider: holds the NASA FIRMS map key, so it stays inactive
+      ( provider_id      = zcl_est_firms=>key_row
+        priority         = 90
+        provider_type    = 'FIRMS'
+        description      = 'NASA FIRMS fire hotspots - map key only, not an AI provider'
+        comm_scenario    = zcl_est_firms=>comm_scenario
+        outbound_service = zcl_est_firms=>outbound_service
+        api_path         = '/api/area/csv' ) ).
+    rows[ provider_id = zcl_est_firms=>key_row ]-is_active = abap_false.
 
     " rows from an earlier seed on scenarios this package no longer ships
     DELETE FROM zest_ai_prov WHERE comm_scenario = 'ZEST_AI_BEDROCK' OR comm_scenario = 'ZEST_AI_GEMINI'.

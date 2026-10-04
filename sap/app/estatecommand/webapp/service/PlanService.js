@@ -97,6 +97,11 @@ sap.ui.define([
       return operation.getBoundContext().getObject();
     },
 
+    /** NASA FIRMS hotspots around the estate: one row with IsStatus (what was read, or why not), then the hotspots, nearest first */
+    fires: async function (estate) {
+      return this._list("/Fire", [new Filter("Estate", FilterOperator.EQ, estate)], [], 500);
+    },
+
     stores: async function (estate) {
       return this._list("/Stores", [new Filter("Estate", FilterOperator.EQ, estate)], [], 200);
     },

@@ -26,7 +26,8 @@ sap.ui.define([
     minus: svg("<path d=\"M5 12h14\"/>"),
     fit: svg("<path d=\"M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5\"/>"),
     layers: svg("<path d=\"M12 3 2 8l10 5 10-5-10-5z\"/><path d=\"m2 16 10 5 10-5\"/><path d=\"m2 12 10 5 10-5\"/>"),
-    check: svg("<path d=\"m5 12 5 5 9-10\"/>")
+    check: svg("<path d=\"m5 12 5 5 9-10\"/>"),
+    fire: svg("<path d=\"M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1.2-3.6 2.3-4.6.3 1.6 1.2 2.6 2.2 3C11 9 11.2 6 12 3z\"/>")
   };
   // a block without a polygon is drawn as a rectangle this many degrees around its centroid
   const HALF_LON = 0.00135;
@@ -90,13 +91,15 @@ sap.ui.define([
    * lines:  the plan's lines [{ BlockKey, CrewCode, IsAssigned, SequenceNo, ... }]
    * selectedBlock: BlockKey to ring
    * insetRight, insetBottom: px covered by a panel; fitting and the map buttons keep clear of them
-   * Fires "select" with the block and its plan lines when a block is clicked.
+   * fires:  NASA FIRMS hotspots [{ Latitude, Longitude, Frp, Confidence, AcqDate, AcqTime, ... }], drawn on top
+ * Fires "select" with the block and its plan lines when a block is clicked.
    */
   return Control.extend("zestate.command.control.BlockMap", {
     metadata: {
       properties: {
         blocks: { type: "object", defaultValue: [] },
         lines: { type: "object", defaultValue: [] },
+        fires: { type: "object", defaultValue: [] },
         selectedBlock: { type: "string", defaultValue: "" },
         insetRight: { type: "int", defaultValue: 0 },
         insetTop: { type: "int", defaultValue: 0 },
@@ -128,6 +131,12 @@ sap.ui.define([
     setLines: function (lines) {
       this.setProperty("lines", lines, true);
       this._draw();
+      return this;
+    },
+
+    setFires: function (fires) {
+      this.setProperty("fires", fires, true);
+      this._drawFires();
       return this;
     },
 
@@ -167,6 +176,7 @@ sap.ui.define([
         this._createMap(dom);
       }
       this._draw();
+      this._drawFires();
       this._resizeId = ResizeHandler.register(this, () => this._map && this._map.invalidateSize());
     },
 
@@ -193,6 +203,8 @@ sap.ui.define([
       this._basemap = null;
       this._setBasemap("satellite");
       this._layer = L.layerGroup().addTo(this._map);
+      this._fireLayer = L.layerGroup().addTo(this._map);
+      this._firesOn = true;
       this._fitted = false;
 
       L.control.scale({ position: "bottomright", imperial: false, maxWidth: 110 }).addTo(this._map);
@@ -202,6 +214,11 @@ sap.ui.define([
           { icon: ICONS.plus, title: "Zoom in", press: () => this._map.zoomIn() },
           { icon: ICONS.minus, title: "Zoom out", press: () => this._map.zoomOut() },
           { icon: ICONS.fit, title: "Fit the estate", press: () => this.fit(true) },
+          { icon: ICONS.fire, title: "Fire hotspots (NASA FIRMS): show or hide", press: (button) => {
+            this._firesOn = !this._firesOn;
+            button.setAttribute("aria-pressed", String(this._firesOn));
+            this._drawFires();
+          } },
           { icon: ICONS.layers, title: "Choose the basemap", press: (button, bar) => this._toggleMenu(bar, button) }
         ]
       }).addTo(this._map);
@@ -293,6 +310,63 @@ sap.ui.define([
       } else {
         this._map.fitBounds(this._bounds, options);
       }
+    },
+
+    /** Fits the estate and the fire hotspots around it */
+    fitFires: function () {
+      const points = (this.getFires() || []).map((f) => [Number(f.Latitude), Number(f.Longitude)]);
+      if (!this._map || !points.length) {
+        return;
+      }
+      if (!this._firesOn) {
+        this._firesOn = true;
+        this._drawFires();
+      }
+      const bounds = L.latLngBounds(points);
+      if (this._bounds && this._bounds.isValid()) {
+        bounds.extend(this._bounds);
+      }
+      this._map.flyToBounds(bounds, { paddingTopLeft: [48, this.getInsetTop() + 48],
+        paddingBottomRight: [this.getInsetRight() + 48, this.getInsetBottom() + 56], maxZoom: 15, duration: 0.8 });
+    },
+
+    /** One marker per hotspot: a glowing dot, larger with more fire radiative power */
+    _drawFires: function () {
+      if (!this._map) {
+        return;
+      }
+      this._fireLayer.clearLayers();
+      const button = this.getDomRef() && this.getDomRef().querySelectorAll(".estMapBtn")[3];
+      if (button) {
+        button.setAttribute("aria-pressed", String(this._firesOn));
+      }
+      if (!this._firesOn) {
+        return;
+      }
+      (this.getFires() || []).forEach((fire) => {
+        const lat = Number(fire.Latitude);
+        const lon = Number(fire.Longitude);
+        if (!lat && !lon) {
+          return;
+        }
+        const size = Math.round(14 + Math.min(14, Math.sqrt(Number(fire.Frp) || 0) * 2));
+        const time = String(fire.AcqTime || "").padStart(4, "0");
+        const where = fire.IsInside ? "inside block " + escape(fire.NearestBlock)
+          : escape(fire.DistanceKm) + " km from block " + escape(fire.NearestBlock);
+        this._fireLayer.addLayer(L.marker([lat, lon], {
+          keyboard: false,
+          zIndexOffset: 1000,
+          icon: L.divIcon({
+            className: "estFire estFire--" + escape(fire.Confidence || "nominal"),
+            html: "<i></i>",
+            iconSize: [size, size]
+          })
+        }).bindTooltip("<div class=\"estTipTitle\"><i style=\"background:#ff5a1f\"></i>Fire hotspot</div>" +
+          "<div class=\"estTipText\">" + escape(fire.AcqDate) + " " + time.slice(0, 2) + ":" + time.slice(2) + " UTC &middot; " +
+          escape(fire.Satellite) + " " + escape(fire.Instrument) + "<br>" +
+          escape(fire.Frp) + " MW &middot; confidence " + escape(fire.Confidence) + "<br>" + where + "</div>",
+          { direction: "top", offset: [0, -size / 2], className: "estTip", opacity: 1 }));
+      });
     },
 
     /** Crew code to colour, stable for the plan on screen */

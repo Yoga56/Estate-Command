@@ -59,7 +59,7 @@ sap.ui.define([
       this._view = new JSONModel({
         estates: [], estate: "", subtitle: "", operation: "harvest", ops: [], plans: [], planUuid: "", plan: null,
         blocks: [], crews: [], legendTitle: "", legendOpen: true, panelOpen: true, insetRight: 0, insetBottom: 0,
-        whyFacts: [], lineRows: { reached: [], missed: [] }, lineCounts: { reached: 0, missed: 0 },
+        whyFacts: [], lineRows: { reached: [], missed: [] }, lineCounts: { reached: 0, missed: 0 }, fires: [], fire: null,
         selected: null, decision: { note: "", dueDate: null, expected: "" }, replan: Object.assign({}, EMPTY_REPLAN),
         question: "", answer: null, handover: null, outcomes: [], stores: []
       });
@@ -192,6 +192,10 @@ sap.ui.define([
       this.byId("page").toggleStyleClass("estPanelClosed", !open);
       // the estate moves into the room the panel leaves, once the panel has slid
       setTimeout(() => this.byId("map").fit(true), 380);
+    },
+
+    onShowFires: function () {
+      this.byId("map").fitFires();
     },
 
     onToggleLegend: function () {
@@ -333,6 +337,8 @@ sap.ui.define([
       this._view.setProperty("/subtitle", record.EstateName || estate);
       this.onBlockClose();
       this._view.setProperty("/blocks", await this._service.blocks(estate));
+      // FIRMS is read on the way; the plan does not wait for it
+      this._loadFires(estate);
       this._view.setProperty("/stores", []);
       this._view.setProperty("/handover", null);
       await this._loadPlans();
@@ -412,6 +418,28 @@ sap.ui.define([
         const lines = (plan._Lines || []).filter((l) => l.BlockKey === selected.key);
         const assigned = lines.find((l) => l.IsAssigned);
         this._select(block, lines, assigned ? colors[assigned.CrewCode] : lines.length ? "#ff4d4f" : "#ffffff");
+      }
+    },
+
+    /** Fire hotspots from NASA FIRMS: the strip in the panel and the layer on the map */
+    _loadFires: async function (estate) {
+      this._view.setProperty("/fires", []);
+      this._view.setProperty("/fire", { text: "Reading NASA FIRMS fire hotspots\u2026", type: "Information", count: 0 });
+      try {
+        const rows = await this._service.fires(estate);
+        if (estate !== this._view.getProperty("/estate")) {
+          return; // another estate was picked meanwhile
+        }
+        const status = rows.find((r) => r.IsStatus) || {};
+        const hotspots = rows.filter((r) => !r.IsStatus);
+        this._view.setProperty("/fires", hotspots);
+        this._view.setProperty("/fire", {
+          text: status.StatusText || "No answer from the fire service",
+          type: ["Information", "Error", "Warning", "Success"][Number(status.Criticality) || 0] || "Information",
+          count: hotspots.length
+        });
+      } catch (error) {
+        this._view.setProperty("/fire", { text: "Fire hotspots unknown: " + messageOf(error), type: "Information", count: 0 });
       }
     },
 

@@ -181,6 +181,16 @@ CLASS zcl_est_assumptions IMPLEMENTATION.
                    basis = 'On: tomorrow''s rain comes from the Open-Meteo forecast. Off: unknown unless set on the plan.'
                    used_by = 'rain on the plan; spray go or hold' min = 0 max = 1 group = 'forecasting'
          CHANGING rows = result ).
+    add( EXPORTING key = 'fire_radius_km' label = 'Fire watch radius' value = 10 unit = 'km'
+                   src = source-assumed
+                   basis = 'NASA FIRMS hotspots this far from the nearest block are shown on the map and in the plan.'
+                   used_by = 'fire hotspots around the estate' min = 1 max = 50 group = 'forecasting'
+         CHANGING rows = result ).
+    add( EXPORTING key = 'fire_days' label = 'Fire watch days' value = 3 unit = 'days'
+                   src = source-assumed
+                   basis = 'Hotspots detected over this many past days (FIRMS allows 1 to 10).'
+                   used_by = 'fire hotspots around the estate' min = 1 max = 10 group = 'forecasting'
+         CHANGING rows = result ).
     " stores
     add( EXPORTING key = 'use_stock_model' label = 'Use learned reorder points' value = 1 unit = '1 on, 0 off'
                    src = source-assumed

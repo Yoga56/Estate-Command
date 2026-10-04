@@ -134,6 +134,23 @@
 .estTipTitle i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .estTipText { font-size: 12px; opacity: 0.8; }
 
+/* --- fire hotspots: a hot core in a pulsing glow */
+.estFire { pointer-events: auto; }
+.estFire i { position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(circle, #fff6c9 0 18%, #ffb000 34%, #ff5a1f 58%, rgba(255, 60, 20, 0) 72%);
+  filter: drop-shadow(0 0 6px rgba(255, 90, 31, 0.9)); }
+.estFire::after { content: ""; position: absolute; inset: -40%; border-radius: 50%; border: 2px solid rgba(255, 110, 40, 0.8);
+  animation: estFirePulse 1.8s ease-out infinite; }
+.estFire--low i { opacity: 0.7; }
+.estFire--high::after { border-color: rgba(255, 40, 20, 0.95); }
+@keyframes estFirePulse { from { transform: scale(0.5); opacity: 1; } to { transform: scale(1.4); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .estFire::after { animation: none; opacity: 0.6; } }
+.estMapBtn[aria-pressed="true"] { color: #ffb000; }
+.estMapBtn[aria-pressed="false"] { color: rgba(255, 255, 255, 0.55); }
+.estKey--fire { width: 12px; height: 12px; border-radius: 50%;
+  background: radial-gradient(circle, #fff6c9 0 18%, #ffb000 38%, #ff5a1f 70%); box-shadow: 0 0 6px rgba(255, 90, 31, 0.9); }
+.estFireStrip.sapMMsgStrip { margin: 0 12px 10px; border-radius: 12px; }
+
 /* --- top bar */
 .estTopBar { position: absolute; top: var(--estGap); left: var(--estGap); z-index: 10; display: flex; gap: 12px;
   padding: 8px 10px 8px 14px; max-width: calc(100% - var(--estPanelWidth) - 4 * var(--estGap)); }
@@ -220,10 +237,19 @@
   width: var(--estPanelWidth); max-width: calc(100% - 2 * var(--estGap)); display: flex; flex-direction: column;
   overflow: hidden; transition: transform 0.38s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease; }
 .estPanel.estCollapsed { transform: translateX(calc(100% + 2 * var(--estGap))); opacity: 0; pointer-events: none; }
-.estPanelHandle.sapMBtn { position: absolute; top: var(--estGap); right: var(--estGap); z-index: 12; height: auto; padding: 0; }
-.estPanelHandle .sapMBtnInner { height: 2.75rem; border-radius: 999px; padding: 0 1rem; border: 1px solid var(--estGlassBorder);
-  background: var(--estGlassBg) !important; -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%);
-  box-shadow: var(--estGlassShadow); }
+/* the handle of the collapsed panel: dark glass like the map buttons */
+.estPage .estPanelHandle.sapMBtn { position: absolute; top: var(--estGap); right: var(--estGap); z-index: 12;
+  height: auto; padding: 0; background: none; }
+.estPage .estPanelHandle.sapMBtn .sapMBtnInner { height: 44px; min-width: 44px; padding: 0 14px 0 10px; border-radius: 14px;
+  background: rgba(12, 22, 17, 0.55) !important; border: 1px solid rgba(255, 255, 255, 0.18);
+  -webkit-backdrop-filter: blur(16px) saturate(140%); backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); color: #fff; }
+.estPage .estPanelHandle.sapMBtn .sapMBtnInner:hover { background: rgba(40, 52, 46, 0.7) !important; }
+.estPage .estPanelHandle .sapMBtnInner .sapMBtnIcon,
+.estPage .estPanelHandle .sapMBtnInner .sapMBtnContent,
+.estPage .estPanelHandle .sapMBtnInner bdi { color: #fff; font-weight: 600; }
+.estPage .estPanelHandle .sapMBtnInner .sapMBtnContent { line-height: 42px; }
+.estPage .estPanelHandle .sapUiIcon { color: #fff !important; line-height: 42px; }
 .estPanelHead { display: flex; align-items: center; justify-content: space-between; padding: 10px 8px 2px 18px; }
 .estPanelHead .sapMTitle { font-size: 1.125rem; font-weight: 700; }
 

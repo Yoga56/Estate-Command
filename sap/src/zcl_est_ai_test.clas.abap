@@ -50,6 +50,13 @@ CLASS zcl_est_ai_test IMPLEMENTATION.
     LOOP AT zcl_est_stores=>overview( 'SMPL' ) INTO DATA(material).
       out->write( |Stores { material-material }: { material-headline } / { material-leadsentence }| ).
     ENDLOOP.
+
+    DATA(fires) = zcl_est_firms=>around( 'SMPL' ).
+    out->write( |Fires: { fires-status }| ).
+    LOOP AT fires-hotspots INTO DATA(hotspot) TO 5.
+      out->write( |  { hotspot-acq_date DATE = ISO } { hotspot-acq_time } UTC { hotspot-satellite } { hotspot-confidence }, | &&
+                  |FRP { hotspot-frp } MW, { hotspot-distance_km } km from block { hotspot-nearest_block }| ).
+    ENDLOOP.
   ENDMETHOD.
 
 ENDCLASS.

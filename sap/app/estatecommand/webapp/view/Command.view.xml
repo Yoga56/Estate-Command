@@ -6,7 +6,7 @@
   <!-- the map fills the page; everything else floats over it on frosted glass -->
   <Page id="page" showHeader="false" enableScrolling="false" class="estPage">
     <content>
-      <est:BlockMap id="map" class="estMapFull" blocks="{view>/blocks}" lines="{view>/plan/_Lines}"
+      <est:BlockMap id="map" class="estMapFull" blocks="{view>/blocks}" lines="{view>/plan/_Lines}" fires="{view>/fires}"
                     selectedBlock="{view>/selected/key}" insetRight="{view>/insetRight}" insetBottom="{view>/insetBottom}" insetTop="80"
                     select=".onBlockSelect"/>
 
@@ -37,7 +37,7 @@
               <Text text="{view>crew} &#183; {view>blocks}" wrapping="false"/>
             </HBox>
           </HBox>
-          <core:HTML content="&lt;div class=&quot;estKeys&quot;&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--missed&quot;&gt;&lt;/i&gt;due, not reached&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--idle&quot;&gt;&lt;/i&gt;nothing due&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--seq&quot;&gt;1&lt;/i&gt;order of work&lt;/span&gt;&lt;/div&gt;"/>
+          <core:HTML content="&lt;div class=&quot;estKeys&quot;&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--missed&quot;&gt;&lt;/i&gt;due, not reached&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--idle&quot;&gt;&lt;/i&gt;nothing due&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--seq&quot;&gt;1&lt;/i&gt;order of work&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--fire&quot;&gt;&lt;/i&gt;fire hotspot (NASA FIRMS)&lt;/span&gt;&lt;/div&gt;"/>
         </VBox>
       </VBox>
 
@@ -99,6 +99,12 @@
           </Select>
           <Button text="Plan Tomorrow" type="Emphasized" icon="sap-icon://create" press=".onGenerate"/>
         </HBox>
+
+        <!-- NASA FIRMS: fire hotspots around the estate, whether or not there is a plan -->
+        <MessageStrip class="estFireStrip" text="{view>/fire/text}" type="{view>/fire/type}" showIcon="true"
+                      customIcon="sap-icon://temperature" visible="{= !!${view>/fire} }">
+          <link><Link text="Show on map" press=".onShowFires" visible="{= ${view>/fire/count} > 0 }"/></link>
+        </MessageStrip>
 
         <VBox class="estPanelScroll" renderType="Bare">
           <VBox visible="{= !${view>/plan} }" renderType="Bare" class="estEmpty">

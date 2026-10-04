@@ -15,6 +15,7 @@ define service ZUI_EST_CMD_O4
   expose ZC_EST_IMPORT     as DataImport;
   expose ZI_EST_BLOCK      as Block;
   expose ZI_EST_STORES     as Stores;
+  expose ZI_EST_FIRE       as Fire;
   expose ZC_EST_AI_PROV    as AIProvider;
   expose ZI_EST_AI_PROV_VH as AIProviderVH;
   expose ZI_EST_ESTATE_VH  as EstateVH;

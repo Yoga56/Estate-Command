@@ -45,6 +45,17 @@ CLASS zcl_est_ai_http DEFINITION
       RAISING
         zcx_est_ai.
 
+    "! Value of an additional property of the arrangement of COMM_SCENARIO; empty when the
+    "! arrangement has no such property. Raises when the scenario has no arrangement.
+    CLASS-METHODS property
+      IMPORTING
+        comm_scenario TYPE csequence
+        name          TYPE csequence
+      RETURNING
+        VALUE(result) TYPE string
+      RAISING
+        zcx_est_ai.
+
     CLASS-METHODS escape_json
       IMPORTING
         text          TYPE string
@@ -116,6 +127,15 @@ CLASS zcl_est_ai_http IMPLEMENTATION.
       RAISE EXCEPTION NEW zcx_est_ai(
         message = |{ config-provider_id }: no API key in the provider row or in arrangement property { api_key_property }| ).
     ENDIF.
+  ENDMETHOD.
+
+
+  METHOD property.
+    LOOP AT get_arrangement( comm_scenario )->get_properties( ) INTO DATA(entry).
+      IF entry-name = name.
+        result = VALUE #( entry-values[ 1 ] OPTIONAL ).
+      ENDIF.
+    ENDLOOP.
   ENDMETHOD.
 
 

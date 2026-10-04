@@ -32,6 +32,7 @@ carries its figures when every provider fails (status `F`).
 | `/gis/ask` | action `Ask` on a plan, audited |
 | `llm_client.py` (Groq / Bedrock) | `ZIF_EST_AI_PROVIDER`, `ZCL_EST_AI_FACTORY`, `ZCL_EST_AI_BEDROCK`, `ZCL_EST_AI_GEMINI` |
 | Open-Meteo rainfall | `ZCL_EST_WEATHER` (communication scenario `ZEST_WEATHER`) |
+| (new) NASA FIRMS fire hotspots | `ZCL_EST_FIRMS`, custom entity `ZI_EST_FIRE` (communication scenario `ZEST_FIRMS`) |
 | `gis/stores.py`, `models/leadtime.py`, `consumption.py`, `safety_stock.py`, `mm.py` | `ZCL_EST_STORES`, `ZCL_EST_MM_DATA` (released MM views, or `ZEST_MM_MOCK`), custom entity `ZI_EST_STORES` |
 | `gis/data/synthetic/*.csv` | Data Import BO `ZR_EST_IMPORT` + `sap/tools/export_sap_seed.py` |
 | `/command` MapLibre map | UI5 app `sap/app/estatecommand` (SVG block map, CSP-safe) |
@@ -99,6 +100,8 @@ These have no hand-writable abapGit format.
 |---|---|---|
 | Outbound service (HTTP) | `ZEST_WEATHER_REST` | Default path prefix empty (optional) |
 | Communication scenario | `ZEST_WEATHER` | Outbound `ZEST_WEATHER_REST`; auth None (optional) |
+| Outbound service (HTTP) | `ZEST_FIRMS_REST` | Default path prefix empty (optional) |
+| Communication scenario | `ZEST_FIRMS` | Outbound `ZEST_FIRMS_REST`; auth None (optional) |
 | Application job catalog entry | `ZEST_PLAN_JOB` | Class `ZCL_EST_PLAN_JOB` |
 | Application job template | `ZEST_PLAN_JOB_T` | Catalog entry above |
 | Application job catalog entry | `ZEST_SEED_JOB` | Class `ZCL_EST_SEED` (seed in client 100) |
@@ -106,7 +109,7 @@ These have no hand-writable abapGit format.
 | IAM app (external, UI5) | `ZEST_COMMAND_EXT` | Service `ZUI_EST_CMD_O4` (OData V4), UI5 app `ZEST_COMMAND` |
 | Business catalog | `ZEST_COMMAND_BC` | App above; assign to a business role |
 
-Publish the weather scenario locally if you create it.
+Publish the weather and fire scenarios locally if you create them.
 
 The AI providers reuse the communication scenarios already in the system; `ZCL_EST_SEED` writes
 these rows into `ZEST_AI_PROV`:
@@ -133,6 +136,16 @@ user authentication *None*, arrangement on scenario `ZEST_WEATHER`.
 
 The weather arrangement is optional: without it the plan says the rain is unknown and decides
 without it (set rain on a replan to override).
+
+For fire hotspots only: request a free NASA FIRMS map key at
+https://firms.modaps.eosdis.nasa.gov/api/map_key/ ; communication system host
+`firms.modaps.eosdis.nasa.gov`, port 443, outbound user authentication *None*, arrangement on
+scenario `ZEST_FIRMS`. Enter the map key as the API key of AI provider row `FIRMS` (created
+inactive by `ZCL_EST_SEED`; it is never used as an AI provider). `ZCL_EST_FIRMS` reads the VIIRS
+(Suomi NPP, NOAA-20, NOAA-21) and MODIS near-real-time products for the box around the blocks,
+keeps the hotspots within `fire_radius_km` (register, default 10 km) of the nearest block over
+`fire_days` (default 3), and the app draws them on the map with a strip in the plan panel. Without
+the arrangement or the key the strip says the fires are unknown.
 
 ### 4. Configure and check
 
