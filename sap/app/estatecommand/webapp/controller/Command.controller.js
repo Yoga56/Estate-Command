@@ -75,7 +75,10 @@ sap.ui.define([
       // dropdowns and popovers render outside the view: this class lets style.css reach them while the app is open
       document.documentElement.classList.add("estApp");
       this._panelWidth = this._clampWidth(Number(readStore(PANEL_KEY)) || PANEL_WIDTH);
-      this.byId("page").addEventDelegate({ onAfterRendering: () => this._applyPanelWidth() });
+      this.byId("page").addEventDelegate({ onAfterRendering: () => {
+        this._applyPanelWidth();
+        this._watchTopBar();
+      } });
       this._insets();
       this._onResize = () => {
         this._panelWidth = this._clampWidth(this._panelWidth);
@@ -102,6 +105,9 @@ sap.ui.define([
       document.documentElement.classList.remove("estApp");
       window.removeEventListener("resize", this._onResize);
       ["pointerdown", "keydown", "dblclick"].forEach((type) => document.removeEventListener(type, this._onGrip));
+      if (this._topBarObserver) {
+        this._topBarObserver.disconnect();
+      }
     },
 
     onEstateChange: function () {
@@ -289,6 +295,20 @@ sap.ui.define([
       // the sheet covers the lower 48 % of a narrow window, 60 % of a phone (style.css)
       const phone = window.matchMedia && window.matchMedia(PHONE).matches;
       this._view.setProperty("/insetBottom", open && narrow ? Math.round(window.innerHeight * (phone ? 0.6 : 0.48)) : 0);
+    },
+
+    /** On narrow windows the block card hangs one gap below the top bar, whatever height the bar takes (style.css) */
+    _watchTopBar: function () {
+      const page = this.byId("page").getDomRef();
+      const bar = page && page.querySelector(".estTopBar");
+      if (this._topBarObserver) {
+        this._topBarObserver.disconnect();
+      }
+      if (!bar || !window.ResizeObserver) {
+        return;
+      }
+      this._topBarObserver = new ResizeObserver(() => page.style.setProperty("--estTopH", bar.offsetHeight + "px"));
+      this._topBarObserver.observe(bar);
     },
 
     // --- the plan panel's width: drag its left edge, arrow keys on the edge, double-click to reset
