@@ -432,7 +432,7 @@ def baseinfo(name: str) -> str:
             + "\"VERSION\":0,\n\"ANNOREF_EVALUATION_ERROR\":\"\"\n}\n}")
 
 
-PACKAGE = _wrap("LCL_OBJECT_DEVC", "   <DEVC>\n    <CTEXT>Estate Command on SAP</CTEXT>\n"
+PACKAGE = _wrap("LCL_OBJECT_DEVC", "   <DEVC>\n    <CTEXT>Demo Estate Dashboard</CTEXT>\n"
                 "    <LANGUAGE>E</LANGUAGE>\n    <MASTERLANG>E</MASTERLANG>\n    <SRV_CHECK>X</SRV_CHECK>\n   </DEVC>\n")
 
 
