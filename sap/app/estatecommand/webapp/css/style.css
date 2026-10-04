@@ -1,7 +1,7 @@
 /* Estate Command: the map fills the page, the rest floats over it on frosted glass.
    Colours come from the theme parameters, so light and dark themes both read. */
 
-.estPage, .estPop {
+.estPage, .estPop, html.estApp .sapMPopover {
   --estGap: 16px;
   --estPanelWidth: 440px;
   --estGlassBg: rgba(255, 255, 255, 0.74);
@@ -15,7 +15,7 @@
   --estFieldBg: rgba(255, 255, 255, 0.5);
 }
 @supports (background: color-mix(in srgb, red 50%, transparent)) {
-  .estPage, .estPop {
+  .estPage, .estPop, html.estApp .sapMPopover {
     --estGlassBg: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 74%, transparent);
     --estGlassStrong: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 86%, transparent);
     --estInk: color-mix(in srgb, var(--sapTextColor, #1d2d3e) 72%, transparent);
@@ -313,6 +313,23 @@
   overflow: hidden; }
 .estPop .sapMPopoverCont, .estPop .sapMPopoverHeader, .estPop .sapMPopoverFooter, .estPop .sapMIBar, .estPop .sapUiForm,
 .estPop .sapMPopoverWrapper { background: transparent !important; box-shadow: none !important; }
+
+/* --- dropdowns, value helps and the date picker: the same glass, lists with rounded rows */
+html.estApp .sapMPopover:not(.estPop) { background: var(--estGlassStrong); border: 1px solid var(--estGlassBorder);
+  border-radius: 16px; overflow: hidden; box-shadow: var(--estGlassShadow);
+  -webkit-backdrop-filter: blur(24px) saturate(130%); backdrop-filter: blur(24px) saturate(130%); }
+html.estApp .sapMPopover:not(.estPop) .sapMPopoverArr { display: none; }
+html.estApp .sapMPopover :is(.sapMPopoverCont, .sapMPopoverHeader, .sapMPopoverFooter, .sapMPopoverWrapper, .sapMIBar,
+  .sapMList, .sapMListUl, .sapMListItems, .sapMSelectList, .sapMListDummyArea, .sapMValueStateHeaderRoot, .sapUiCal,
+  .sapUiCalHead, .sapUiCalMonthPicker, .sapUiCalYearPicker, .sapUiCalContent) { background: transparent !important; box-shadow: none !important; }
+html.estApp .sapMPopover :is(.sapMListUl, .sapMSelectList) { padding: 4px; box-sizing: border-box; }
+html.estApp .sapMPopover :is(.sapMLIB, .sapMSelectListItemBase) { background: transparent !important; border-radius: 10px;
+  border-bottom-color: transparent !important; transition: background 0.12s; }
+html.estApp .sapMPopover :is(.sapMLIB, .sapMSelectListItemBase):hover {
+  background: color-mix(in srgb, var(--sapList_Hover_Background, #eaecee) 75%, transparent) !important; }
+html.estApp .sapMPopover :is(.sapMLIBSelected, .sapMSelectListItemBaseSelected) {
+  background: color-mix(in srgb, var(--sapBrandColor, #0070f2) 14%, transparent) !important; }
+html.estApp .sapMPopover .sapMLIBFocusable:focus { outline-offset: -2px; }
 
 /* narrow windows: the panel takes the lower half, the map the upper */
 @media (max-width: 900px) {

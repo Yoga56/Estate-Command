@@ -69,6 +69,8 @@ sap.ui.define([
       this._stripes.attachPropertyChange(this.onStripesChange, this);
       this.getView().setModel(this._stripes, "stripes");
 
+      // dropdowns and popovers render outside the view: this class lets style.css reach them while the app is open
+      document.documentElement.classList.add("estApp");
       this._panelWidth = this._clampWidth(Number(readStore(PANEL_KEY)) || PANEL_WIDTH);
       this.byId("page").addEventDelegate({ onAfterRendering: () => this._applyPanelWidth() });
       this._insets();
@@ -96,6 +98,7 @@ sap.ui.define([
     },
 
     onExit: function () {
+      document.documentElement.classList.remove("estApp");
       window.removeEventListener("resize", this._onResize);
       ["pointerdown", "keydown", "dblclick"].forEach((type) => document.removeEventListener(type, this._onGrip));
     },
