@@ -29,6 +29,30 @@ sap.ui.define([
     check: svg("<path d=\"m5 12 5 5 9-10\"/>"),
     fire: svg("<path d=\"M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1.2-3.6 2.3-4.6.3 1.6 1.2 2.6 2.2 3C11 9 11.2 6 12 3z\"/>")
   };
+  // fire sources: the satellite codes FIRMS uses, by instrument; MODIS pixels are 1 km, VIIRS 375 m
+  const FIRE_SOURCES = [
+    { key: "viirs-n", label: "VIIRS Suomi NPP", match: (f) => /VIIRS/i.test(f.Instrument) && /^(N|NPP|SNPP)$/i.test(f.Satellite) },
+    { key: "viirs-n20", label: "VIIRS NOAA-20", match: (f) => /VIIRS/i.test(f.Instrument) && /^(N20|1)$/i.test(f.Satellite) },
+    { key: "viirs-n21", label: "VIIRS NOAA-21", match: (f) => /VIIRS/i.test(f.Instrument) && /^(N21|2)$/i.test(f.Satellite) },
+    { key: "modis-terra", label: "MODIS Terra", match: (f) => /MODIS/i.test(f.Instrument) && /^(T|Terra)$/i.test(f.Satellite) },
+    { key: "modis-aqua", label: "MODIS Aqua", match: (f) => /MODIS/i.test(f.Instrument) && /^(A|Aqua)$/i.test(f.Satellite) }
+  ];
+  const FIRE_DEFAULTS = { merge: true, sources: { "viirs-n": true, "viirs-n20": true, "viirs-n21": true,
+    "modis-terra": false, "modis-aqua": false } };
+  const FIRE_KEY = "zestate.command.fireLayer";
+  // detections closer than this are one fire on the ground (a VIIRS pixel)
+  const MERGE_KM = 0.375;
+  const sourceOf = (fire) => FIRE_SOURCES.find((source) => source.match(fire)) || { key: "other", label: "other" };
+  const loadFireOptions = () => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(FIRE_KEY) || "null");
+      return saved && saved.sources ? { merge: saved.merge !== false, sources: Object.assign({}, FIRE_DEFAULTS.sources, saved.sources) }
+        : JSON.parse(JSON.stringify(FIRE_DEFAULTS));
+    } catch (e) {
+      return JSON.parse(JSON.stringify(FIRE_DEFAULTS));
+    }
+  };
+
   // a block without a polygon is drawn as a rectangle this many degrees around its centroid
   const HALF_LON = 0.00135;
   const HALF_LAT = 0.0045;
@@ -207,6 +231,7 @@ sap.ui.define([
       this._fireLayer = L.layerGroup().addTo(this._map);
       // the live layer is off until asked for: reading it calls NASA FIRMS
       this._firesOn = false;
+      this._fireOptions = loadFireOptions();
       this._fitted = false;
 
       L.control.scale({ position: "bottomright", imperial: false, maxWidth: 110 }).addTo(this._map);
@@ -216,10 +241,8 @@ sap.ui.define([
           { icon: ICONS.plus, title: "Zoom in", press: () => this._map.zoomIn() },
           { icon: ICONS.minus, title: "Zoom out", press: () => this._map.zoomOut() },
           { icon: ICONS.fit, title: "Fit the estate", press: () => this.fit(true) },
-          { icon: ICONS.fire, title: "Live fire hotspots (NASA FIRMS): read and show, or hide", press: () => {
-            this.showFires(!this._firesOn);
-            this.fireFiresToggle({ on: this._firesOn });
-          } },
+          { icon: ICONS.fire, title: "Live fire hotspots (NASA FIRMS): show, hide, choose the sources",
+            press: (button, bar) => this._toggleFireMenu(bar, button) },
           { icon: ICONS.layers, title: "Choose the basemap", press: (button, bar) => this._toggleMenu(bar, button) }
         ]
       }).addTo(this._map);
@@ -232,10 +255,11 @@ sap.ui.define([
 
     /** The basemap menu: one entry per basemap, with a tile of the estate as its picture */
     _toggleMenu: function (bar, button) {
-      if (!bar.menu.hidden) {
+      if (!bar.menu.hidden && this._menuButton === button) {
         this._closeMenu();
         return;
       }
+      this._closeMenu();
       const center = this._map.getCenter();
       const z = Math.max(3, Math.min(15, Math.round(this._map.getZoom()) - 1));
       const tile = tileOf(center.lat, center.lng, z);
@@ -272,6 +296,73 @@ sap.ui.define([
       if (checked) {
         checked.focus();
       }
+    },
+
+    /** The fire menu: the live layer on or off, which satellites, and whether nearby detections merge */
+    _toggleFireMenu: function (bar, button) {
+      if (!bar.menu.hidden && this._menuButton === button) {
+        this._closeMenu();
+        return;
+      }
+      this._closeMenu();
+      const counts = {};
+      (this.getFires() || []).forEach((fire) => {
+        const key = sourceOf(fire).key;
+        counts[key] = (counts[key] || 0) + 1;
+      });
+      const options = this._fireOptions;
+      const item = (label, checked, note, press) => {
+        const element = L.DomUtil.create("button", "estMapMenuItem estMapMenuItem--check", bar.menu);
+        element.type = "button";
+        element.setAttribute("role", "menuitemcheckbox");
+        element.setAttribute("aria-checked", String(checked));
+        element.innerHTML = "<span>" + escape(label) + (note ? "<small>" + escape(note) + "</small>" : "") + "</span>" + ICONS.check;
+        L.DomEvent.on(element, "click", (event) => {
+          L.DomEvent.stop(event);
+          press();
+          element.setAttribute("aria-checked", String(!(element.getAttribute("aria-checked") === "true")));
+        });
+        return element;
+      };
+      bar.menu.innerHTML = "";
+      bar.menu.setAttribute("role", "menu");
+      bar.menu.setAttribute("aria-label", "Fire hotspots");
+      item("Live hotspots", this._firesOn, this._firesOn ? "NASA FIRMS, read" : "reads NASA FIRMS", () => {
+        this.showFires(!this._firesOn);
+        this.fireFiresToggle({ on: this._firesOn });
+      });
+      L.DomUtil.create("div", "estMapMenuRule", bar.menu);
+      FIRE_SOURCES.forEach((source) => item(source.label, !!options.sources[source.key],
+        counts[source.key] ? counts[source.key] + " detections" : this.getFires().length ? "none" : "", () => {
+          options.sources[source.key] = !options.sources[source.key];
+          this._saveFireOptions();
+        }));
+      L.DomUtil.create("div", "estMapMenuRule", bar.menu);
+      item("Merge nearby detections", options.merge, "within 375 m, one dot per fire", () => {
+        options.merge = !options.merge;
+        this._saveFireOptions();
+      });
+      bar.menu.hidden = false;
+      button.setAttribute("aria-expanded", "true");
+      this._menuBar = bar;
+      this._menuButton = button;
+      this._onMenuKey = (event) => {
+        if (event.key === "Escape") {
+          this._closeMenu();
+          button.focus();
+        }
+      };
+      document.addEventListener("keydown", this._onMenuKey);
+      bar.menu.querySelector("button").focus();
+    },
+
+    _saveFireOptions: function () {
+      try {
+        window.localStorage.setItem(FIRE_KEY, JSON.stringify(this._fireOptions));
+      } catch (e) {
+        // storage blocked: the choice lasts for this session
+      }
+      this._drawFires();
     },
 
     _closeMenu: function () {
@@ -339,6 +430,7 @@ sap.ui.define([
     },
 
     /** One marker per hotspot: a glowing dot, larger with more fire radiative power */
+    /** The live hotspots, quietly: small dots, older ones fainter; nearby detections of any satellite merged */
     _drawFires: function () {
       if (!this._map) {
         return;
@@ -351,28 +443,55 @@ sap.ui.define([
       if (!this._firesOn) {
         return;
       }
-      (this.getFires() || []).forEach((fire) => {
+      const options = this._fireOptions;
+      const fires = (this.getFires() || []).filter((fire) => {
+        const key = sourceOf(fire).key;
+        return (Number(fire.Latitude) || Number(fire.Longitude)) && (key === "other" || options.sources[key]);
+      });
+      const newest = fires.reduce((max, fire) => String(fire.AcqDate) > max ? String(fire.AcqDate) : max, "");
+
+      // strongest first, so a merged fire sits where it burns hardest
+      const groups = [];
+      fires.slice().sort((a, b) => (Number(b.Frp) || 0) - (Number(a.Frp) || 0)).forEach((fire) => {
         const lat = Number(fire.Latitude);
         const lon = Number(fire.Longitude);
-        if (!lat && !lon) {
-          return;
+        const near = options.merge && groups.find((g) => {
+          const dy = (g.lat - lat) * 111.32;
+          const dx = (g.lon - lon) * 111.32 * Math.cos(lat * Math.PI / 180);
+          return dx * dx + dy * dy <= MERGE_KM * MERGE_KM;
+        });
+        if (near) {
+          near.fires.push(fire);
+        } else {
+          groups.push({ lat: lat, lon: lon, fires: [fire] });
         }
-        const size = Math.round(14 + Math.min(14, Math.sqrt(Number(fire.Frp) || 0) * 2));
-        const time = String(fire.AcqTime || "").padStart(4, "0");
-        const where = fire.IsInside ? "inside block " + escape(fire.NearestBlock)
-          : escape(fire.DistanceKm) + " km from block " + escape(fire.NearestBlock);
-        this._fireLayer.addLayer(L.marker([lat, lon], {
+      });
+
+      groups.forEach((group) => {
+        const lead = group.fires[0];
+        const frp = Number(lead.Frp) || 0;
+        const size = Math.round(8 + Math.min(8, Math.sqrt(frp) * 1.3));
+        const latest = group.fires.reduce((max, f) => String(f.AcqDate) > max ? String(f.AcqDate) : max, "");
+        const age = latest === newest ? "new" : "old";
+        const where = group.fires.some((f) => f.IsInside) ? "inside block " + escape(lead.NearestBlock)
+          : escape(lead.DistanceKm) + " km from block " + escape(lead.NearestBlock);
+        const passes = group.fires.slice(0, 6).map((f) => {
+          const time = String(f.AcqTime || "").padStart(4, "0");
+          return escape(f.AcqDate) + " " + time.slice(0, 2) + ":" + time.slice(2) + " &middot; " + escape(sourceOf(f).label) +
+            " &middot; " + escape(f.Frp) + " MW";
+        }).join("<br>") + (group.fires.length > 6 ? "<br>+" + (group.fires.length - 6) + " more" : "");
+        this._fireLayer.addLayer(L.marker([group.lat, group.lon], {
           keyboard: false,
           zIndexOffset: 1000,
           icon: L.divIcon({
-            className: "estFire estFire--" + escape(fire.Confidence || "nominal"),
+            className: "estFire estFire--" + age + (group.fires.length > 1 ? " estFire--multi" : "") +
+              " estFire--" + escape(lead.Confidence || "nominal"),
             html: "<i></i>",
             iconSize: [size, size]
           })
-        }).bindTooltip("<div class=\"estTipTitle\"><i style=\"background:#ff5a1f\"></i>Fire hotspot</div>" +
-          "<div class=\"estTipText\">" + escape(fire.AcqDate) + " " + time.slice(0, 2) + ":" + time.slice(2) + " UTC &middot; " +
-          escape(fire.Satellite) + " " + escape(fire.Instrument) + "<br>" +
-          escape(fire.Frp) + " MW &middot; confidence " + escape(fire.Confidence) + "<br>" + where + "</div>",
+        }).bindTooltip("<div class=\"estTipTitle\"><i style=\"background:#ff7a1a\"></i>Fire hotspot" +
+          (group.fires.length > 1 ? " &middot; " + group.fires.length + " detections" : "") + "</div>" +
+          "<div class=\"estTipText\">" + where + "<br>" + passes + "<br>UTC; confidence " + escape(lead.Confidence) + "</div>",
           { direction: "top", offset: [0, -size / 2], className: "estTip", opacity: 1 }));
       });
     },
