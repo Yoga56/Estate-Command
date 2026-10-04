@@ -227,9 +227,9 @@ kinetic type on twisting stripes - no box, a fan of ribbons in the lower left co
 diagonal, that runs in stripe by stripe from the bottom right, flows up to the top left and leaves
 that way when the block card is closed (`control/BlockStripes.js`, canvas 2D, after
 Space Type Generator's *_v.stripes*). The gear on the block card sets preset, colours, which facts,
-angle, stripes, twist, ripple, speed and text size; the settings stay in the browser
-(`localStorage`) per user. Users who ask the system for reduced motion get still stripes without
-the run in and out.
+angle, stripes, thickness, twist, ripple, speed and text size; the settings stay in the browser
+(`localStorage`) per user. *Animate* decides whether the stripes move and run in and out; it
+starts off for users whose operating system asks for reduced motion.
 
 ---
 

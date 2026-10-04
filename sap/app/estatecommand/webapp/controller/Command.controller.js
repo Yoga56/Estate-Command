@@ -200,7 +200,7 @@ sap.ui.define([
 
     onStripesChange: function (event) {
       const path = event.getParameter("path");
-      if (["rows", "twist", "twistWaves", "wave", "speed", "fontScale"].indexOf(path.replace("/", "")) >= 0) {
+      if (["rows", "thickness", "twist", "twistWaves", "wave", "speed", "fontScale"].indexOf(path.replace("/", "")) >= 0) {
         this._stripes.setProperty("/preset", "custom");
       }
       this._stripesChanged();

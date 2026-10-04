@@ -20,14 +20,19 @@ sap.ui.define([
     stacks: { rows: 9, twist: 0.25, twistWaves: 1.4, wave: 2, speed: 0.5, fontScale: 0.8 }
   };
 
+  const stillMotion = () => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Reduced motion in the operating system only sets the starting value of "animate";
+  // the user's own switch decides from then on
   const DEFAULTS = Object.assign({
     preset: "ribbon",
     gap: 4,
+    thickness: 56,
     angle: 0,
     palette: "crew",
     facts: ["block", "crew", "work", "mandays", "urgency", "deferral", "area", "road"],
     uppercase: true,
-    animate: true
+    animate: !stillMotion()
   }, PRESETS.ribbon);
 
   const SLICE = 3; // css px per column of the ribbon
@@ -41,7 +46,6 @@ sap.ui.define([
     return (0.299 * (n >> 16 & 255) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255;
   };
   const easeOut = (k) => 1 - Math.pow(1 - k, 3);
-  const stillMotion = () => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   /**
    * A block's facts as kinetic type: each fact runs along its own stripe, and the stripes turn
@@ -54,7 +58,8 @@ sap.ui.define([
    *
    * facts:  [{ key, text }] - which of them show is config.facts
    * color:  the crew's colour, used by the "crew" palette
-   * config: { preset, rows, gap, angle, twist, twistWaves, wave, speed, fontScale, palette, facts, uppercase, animate };
+   * config: { preset, rows, thickness, gap, angle, twist, twistWaves, wave, speed, fontScale, palette, facts, uppercase,
+   *           animate }; thickness is px per stripe; animate off also drops the run in and out
    *         read on every frame, so a changed value shows at once; call refresh() when not animating
    */
   const BlockStripes = Control.extend("zestate.command.control.BlockStripes", {
@@ -102,7 +107,7 @@ sap.ui.define([
     show: function () {
       const done = this._reveal && this._reveal.done;
       this._shown = true;
-      this._reveal = stillMotion() ? null : { dir: 1, start: performance.now() };
+      this._reveal = this.settings().animate ? { dir: 1, start: performance.now() } : null;
       if (done) {
         done();
       }
@@ -112,7 +117,7 @@ sap.ui.define([
     /** Runs the stripes out; resolves when they are gone */
     hide: function () {
       return new Promise((resolve) => {
-        if (!this._shown || stillMotion() || !this._canvas) {
+        if (!this._shown || !this.settings().animate || !this._canvas) {
           this._shown = false;
           this._reveal = null;
           this.refresh();
@@ -162,7 +167,7 @@ sap.ui.define([
     },
 
     _wantsLoop: function () {
-      return !!this._reveal || (this._shown && this.settings().animate && !stillMotion());
+      return !!this._reveal || (this._shown && this.settings().animate);
     },
 
     _loop: function () {
@@ -285,7 +290,9 @@ sap.ui.define([
       const diagonal = Math.hypot(width, height);
       const depth = width * height / diagonal; // from the diagonal to the corner
       const length = diagonal + 2 * OVERHANG;
-      const rowHeight = Math.max(4, (depth - s.gap * (rows + 1)) / rows);
+      const rowHeight = Math.max(6, Number(s.thickness) || 56);
+      // the stack of stripes sits in the middle of the triangle, however thick it is
+      const offset = (depth - (rows * rowHeight + (rows - 1) * s.gap)) / 2;
       const theta = Number(s.angle || 0) * Math.PI / 180;
       const cos = Math.cos(theta);
       const sin = Math.sin(theta);
@@ -295,7 +302,7 @@ sap.ui.define([
       const n = [across[0] * cos - across[1] * sin, across[0] * sin + across[1] * cos];
       const middle = [diagonal / 2 * along[0] + depth / 2 * across[0], diagonal / 2 * along[1] + depth / 2 * across[1]];
 
-      const key = JSON.stringify([rows, s.gap, s.palette, s.facts, s.uppercase, s.fontScale, this.getFacts(),
+      const key = JSON.stringify([rows, rowHeight, s.gap, s.palette, s.facts, s.uppercase, s.fontScale, this.getFacts(),
         this.getColor(), width, height]);
       if (!this._strips || this._stripsKey !== key) {
         this._strips = this._buildStrips(Object.assign({}, s, { rows: rows }), length, rowHeight, dpr);
@@ -306,7 +313,7 @@ sap.ui.define([
       ctx.setTransform(dpr * u[0], dpr * u[1], dpr * n[0], dpr * n[1],
         dpr * (middle[0] - length / 2 * u[0] - depth / 2 * n[0]), dpr * (middle[1] - length / 2 * u[1] - depth / 2 * n[1]));
       const t = (now - (this._start || now)) / 1000;
-      const clock = s.animate && !stillMotion() ? t : 0;
+      const clock = s.animate ? t : 0;
       const entering = !this._reveal || this._reveal.dir > 0;
 
       this._strips.forEach((strip, row) => {
@@ -318,7 +325,7 @@ sap.ui.define([
         const from = entering ? length * (1 - progress) : 0;
         const to = entering ? length : length * progress;
         const edge = entering ? from : to;
-        const center = s.gap + rowHeight / 2 + row * (rowHeight + s.gap);
+        const center = offset + rowHeight / 2 + row * (rowHeight + s.gap);
         // the type flows up the stripe, each stripe at its own pace
         const pace = s.speed * 48 * (1 + 0.18 * (row % 3));
         const scroll = ((clock * pace) % strip.unit + strip.unit) % strip.unit;
