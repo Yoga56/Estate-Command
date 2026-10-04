@@ -5,7 +5,7 @@
    <VSEOCLASS>
     <CLSNAME>ZCL_EST_PLAN_JOB</CLSNAME>
     <LANGU>E</LANGU>
-    <DESCRIPT>Application job: tomorrow's plans</DESCRIPT>
+    <DESCRIPT>Application job: tomorrow&apos;s plans</DESCRIPT>
     <STATE>1</STATE>
     <FIXPT>X</FIXPT>
     <UNICODE>X</UNICODE>

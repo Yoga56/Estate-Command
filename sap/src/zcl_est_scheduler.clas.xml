@@ -5,7 +5,7 @@
    <VSEOCLASS>
     <CLSNAME>ZCL_EST_SCHEDULER</CLSNAME>
     <LANGU>E</LANGU>
-    <DESCRIPT>Estate Command: tomorrow's assignment</DESCRIPT>
+    <DESCRIPT>Estate Command: tomorrow&apos;s assignment</DESCRIPT>
     <STATE>1</STATE>
     <FIXPT>X</FIXPT>
     <UNICODE>X</UNICODE>

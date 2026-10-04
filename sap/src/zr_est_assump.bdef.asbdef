@@ -40,7 +40,7 @@ etag master LocalLastChangedAt
   draft action Discard;
   draft action Edit;
   draft action Resume;
-  draft determine action Prepare { validation CheckRange; };
+  draft determine action Prepare { validation CheckRange; }
 
   mapping for zest_assump
   {
