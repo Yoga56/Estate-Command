@@ -1,0 +1,10 @@
+projection;
+strict ( 2 );
+
+define behavior for ZC_EST_AI_PROV alias Provider
+use etag
+{
+  use create;
+  use update;
+  use delete;
+}

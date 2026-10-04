@@ -137,6 +137,7 @@ CLASSES = {
     "ZBP_R_EST_ASSUMP": ("Behavior Definition for ZR_EST_ASSUMP", "06"),
     "ZBP_R_EST_ESTATE": ("Behavior Definition for ZR_EST_ESTATE", "06"),
     "ZBP_R_EST_IMPORT": ("Behavior Definition for ZR_EST_IMPORT", "06"),
+    "ZBP_R_EST_AI_PROV": ("Behavior Definition for ZR_EST_AI_PROV", "06"),
 }
 
 INTERFACES = {"ZIF_EST_AI_PROVIDER": "Estate Command: AI provider"}
@@ -145,6 +146,8 @@ DDLS = {
     "ZI_EST_AI_PROV_VH": "AI Provider",
     "ZI_EST_ESTATE_VH": "Estate",
     "ZI_EST_BLOCK": "Estate Block",
+    "ZR_EST_AI_PROV": "AI Provider",
+    "ZC_EST_AI_PROV": "AI Provider",
     "ZR_EST_PLAN": "Tomorrow's Assignment",
     "ZR_EST_PLAN_L": "Assignment Line",
     "ZC_EST_PLAN": "Tomorrow's Assignment",
@@ -167,9 +170,9 @@ DDLS = {
     "ZA_EST_OUTCOME": "Plan Outcome",
 }
 
-DDLX = ["ZC_EST_PLAN", "ZC_EST_PLAN_L", "ZC_EST_ASSUMP", "ZC_EST_ESTATE", "ZC_EST_IMPORT", "ZI_EST_STORES"]
+DDLX = ["ZC_EST_AI_PROV", "ZC_EST_PLAN", "ZC_EST_PLAN_L", "ZC_EST_ASSUMP", "ZC_EST_ESTATE", "ZC_EST_IMPORT", "ZI_EST_STORES"]
 DCLS = ["ZR_EST_PLAN", "ZC_EST_PLAN"]
-BDEF = ["ZR_EST_PLAN", "ZC_EST_PLAN", "ZR_EST_ASSUMP", "ZC_EST_ASSUMP",
+BDEF = ["ZR_EST_AI_PROV", "ZC_EST_AI_PROV", "ZR_EST_PLAN", "ZC_EST_PLAN", "ZR_EST_ASSUMP", "ZC_EST_ASSUMP",
         "ZR_EST_ESTATE", "ZC_EST_ESTATE", "ZR_EST_IMPORT", "ZC_EST_IMPORT"]
 SRVD = {"ZUI_EST_CMD_O4": "Estate Command service"}
 SRVB = {"ZUI_EST_CMD_O4": "ZUI_EST_CMD_O4"}

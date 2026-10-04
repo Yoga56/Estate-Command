@@ -12,11 +12,24 @@ CLASS zcl_est_seed DEFINITION
     "!     the estate's own extracts are imported. Running again rebuilds SMPL only.
     "! The sample is generated from a fixed sequence: every run writes the same estate, dated
     "! up to yesterday.
+    "!
+    "! ADT runs it in the client it is logged on to (F9). For another client - client 100, where
+    "! the communication arrangements and the cockpit's keys are - schedule it there as an
+    "! application job (catalog entry ZEST_SEED_JOB, template ZEST_SEED_JOB_T); the messages go to
+    "! the job's application log.
     INTERFACES if_oo_adt_classrun.
+    INTERFACES if_apj_dt_exec_object.
+    INTERFACES if_apj_rt_exec_object.
+
+    "! @parameter rebuild_sample | also rebuild sample estate SMPL
+    METHODS run
+      IMPORTING rebuild_sample TYPE abap_bool DEFAULT abap_true
+      RETURNING VALUE(result)  TYPE string_table.
   PROTECTED SECTION.
   PRIVATE SECTION.
     CONSTANTS sample TYPE zest_estate-estate VALUE 'SMPL'.
     CONSTANTS block_degrees TYPE decfloat34 VALUE '0.004'.
+    CONSTANTS sample_parameter TYPE c LENGTH 8 VALUE 'P_SAMPLE'.
 
     DATA seed TYPE int8 VALUE 20250524.
 
@@ -25,7 +38,7 @@ CLASS zcl_est_seed DEFINITION
     METHODS assumptions
       RETURNING VALUE(result) TYPE i.
     METHODS sample_estate
-      IMPORTING out TYPE REF TO if_oo_adt_classrun_out.
+      RETURNING VALUE(result) TYPE string.
     METHODS sample_stores
       RETURNING VALUE(result) TYPE i.
     "! next number of the fixed sequence, from 0 to BELOW - 1
@@ -39,17 +52,59 @@ ENDCLASS.
 CLASS zcl_est_seed IMPLEMENTATION.
 
   METHOD if_oo_adt_classrun~main.
-    out->write( |{ providers( ) } AI provider(s) written to ZEST_AI_PROV| ).
+    LOOP AT run( ) INTO DATA(message).
+      out->write( message ).
+    ENDLOOP.
+    out->write( `Next: run ZCL_EST_AI_TEST, then preview ZUI_EST_CMD_O4 -> Plan -> Plan Tomorrow (estate SMPL)` ).
+  ENDMETHOD.
+
+
+  METHOD run.
+    APPEND |{ providers( ) } AI provider(s) written to ZEST_AI_PROV| TO result.
     " a string column cannot be compared in WHERE: read the keys and test them here
     SELECT provider_id, api_key FROM zest_ai_prov WHERE is_active = @abap_true
       ORDER BY provider_id INTO TABLE @DATA(keyless).
     LOOP AT keyless INTO DATA(provider) WHERE api_key IS INITIAL.
-      out->write( |  { provider-provider_id }: no key in the row; it needs arrangement property API_KEY| ).
+      APPEND |  { provider-provider_id }: no key in the row; it needs arrangement property API_KEY| TO result.
     ENDLOOP.
-    out->write( |{ assumptions( ) } assumption(s) added to ZEST_ASSUMP| ).
-    sample_estate( out ).
-    out->write( |{ sample_stores( ) } sample stores record(s) written to ZEST_MM_MOCK| ).
-    out->write( `Next: run ZCL_EST_AI_TEST, then preview ZUI_EST_CMD_O4 -> Plan -> Plan Tomorrow (estate SMPL)` ).
+    APPEND |{ assumptions( ) } assumption(s) added to ZEST_ASSUMP| TO result.
+    IF rebuild_sample = abap_true.
+      APPEND sample_estate( ) TO result.
+      APPEND |{ sample_stores( ) } sample stores record(s) written to ZEST_MM_MOCK| TO result.
+    ENDIF.
+  ENDMETHOD.
+
+
+  METHOD if_apj_dt_exec_object~get_parameters.
+    et_parameter_def = VALUE #(
+      ( selname        = sample_parameter
+        kind           = if_apj_dt_exec_object=>parameter
+        datatype       = 'C'
+        length         = 1
+        param_text     = 'Rebuild sample estate SMPL'
+        checkbox_ind   = abap_true
+        changeable_ind = abap_true ) ).
+    et_parameter_val = VALUE #( ( selname = sample_parameter kind = if_apj_dt_exec_object=>parameter
+                                  sign = 'I' option = 'EQ' low = abap_true ) ).
+  ENDMETHOD.
+
+
+  METHOD if_apj_rt_exec_object~execute.
+    DATA(rebuild) = xsdbool( VALUE #( it_parameters[ selname = sample_parameter ]-low OPTIONAL ) = abap_true ).
+    DATA(messages) = run( rebuild ).
+    COMMIT WORK.
+
+    " what the seed did, in the job's application log
+    TRY.
+        DATA(log) = cl_bali_log=>create( ).
+        LOOP AT messages INTO DATA(message).
+          log->add_item( cl_bali_free_text_setter=>create( severity = if_bali_constants=>c_severity_status
+                                                           text     = CONV #( message ) ) ).
+        ENDLOOP.
+        cl_bali_log_db=>get_instance( )->save_log( log = log assign_to_current_appl_job = abap_true ).
+      CATCH cx_bali_runtime.
+        RETURN.
+    ENDTRY.
   ENDMETHOD.
 
 
@@ -323,9 +378,9 @@ CLASS zcl_est_seed IMPLEMENTATION.
     INSERT zest_workord FROM TABLE @orders.
     INSERT zest_upkeep FROM TABLE @upkeep.
 
-    out->write( |Estate { sample }: { lines( blocks ) } blocks, { lines( crews ) } crews, | &&
+    result = |Estate { sample }: { lines( blocks ) } blocks, { lines( crews ) } crews, | &&
                 |{ lines( attendance ) } attendance days, { lines( orders ) } work orders, { lines( upkeep ) } upkeep rounds; | &&
-                |data ends { data_end DATE = ISO }, so tomorrow is { today DATE = ISO }| ).
+                |data ends { data_end DATE = ISO }, so tomorrow is { today DATE = ISO }|.
   ENDMETHOD.
 
 

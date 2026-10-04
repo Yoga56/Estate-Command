@@ -98,6 +98,8 @@ These have no hand-writable abapGit format.
 | Communication scenario | `ZEST_WEATHER` | Outbound `ZEST_WEATHER_REST`; auth None (optional) |
 | Application job catalog entry | `ZEST_PLAN_JOB` | Class `ZCL_EST_PLAN_JOB` |
 | Application job template | `ZEST_PLAN_JOB_T` | Catalog entry above |
+| Application job catalog entry | `ZEST_SEED_JOB` | Class `ZCL_EST_SEED` (seed in client 100) |
+| Application job template | `ZEST_SEED_JOB_T` | Catalog entry above |
 | IAM app (external, UI5) | `ZEST_COMMAND_EXT` | Service `ZUI_EST_CMD_O4` (OData V4), UI5 app `ZEST_COMMAND` |
 | Business catalog | `ZEST_COMMAND_BC` | App above; assign to a business role |
 
@@ -147,6 +149,24 @@ without it (set rain on a replan to override).
      the day the data ends.
 4. *Application Jobs* app → schedule template `ZEST_PLAN_JOB_T` daily at 18:00: tomorrow's plans
    for every estate and operation are waiting in the morning.
+
+### 4a. Client 100
+
+ADT runs classes (F9) only in development client 80, but the communication arrangements and the
+CFO cockpit's keys are maintained in client 100. Code is shared; table contents are per client.
+
+1. In client 100, *Maintain Business Roles*: add business catalog `ZEST_COMMAND_BC` to a role of
+   your user (the IAM app must list service `ZUI_EST_CMD_O4`).
+2. *Application Jobs* → create a job from template `ZEST_SEED_JOB_T` (*Rebuild sample estate
+   SMPL* ticked) → run once. Its application log shows the provider rows, any provider still
+   without a key, the register and the sample estate. Keys are copied from `ZFSCM_AI_PROV` of
+   client 100.
+3. Keys or models to change: entity *AIProvider* of `ZUI_EST_CMD_O4` (create, change, delete
+   provider rows; `ApiKey` blank means arrangement property `API_KEY`).
+4. *Application Jobs* → template `ZEST_PLAN_JOB_T` → run once: a plan per operation for every
+   estate; the Plan app shows them with the model's words, or status `F` and the reason.
+5. UI5 app against client 100: `npm run start-100` (destination `my402225`); deploy with
+   `npm run deploy-100`.
 
 ### 5. The estate's own data
 

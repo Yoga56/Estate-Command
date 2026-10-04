@@ -8,8 +8,7 @@ builder:
       afterTask: generateCachebusterInfo
       configuration:
         target:
-          url: https://my402244.s4hana.cloud.sap
-          authenticationType: reentranceTicket
+          destination: my402225
         app:
           name: ZEST_COMMAND
           description: Estate Command

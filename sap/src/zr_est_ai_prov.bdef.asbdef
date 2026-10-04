@@ -1,0 +1,49 @@
+managed implementation in class ZBP_R_EST_AI_PROV unique;
+strict ( 2 );
+
+define behavior for ZR_EST_AI_PROV alias Provider
+persistent table zest_ai_prov
+lock master
+authorization master ( global )
+etag master LocalLastChangedAt
+{
+  // the client's own provider rows: model, scenario, priority and, where the arrangement
+  // carries none, the API key
+  field ( mandatory : create, readonly : update )
+   ProviderId;
+
+  field ( readonly )
+   CreatedBy,
+   CreatedAt,
+   LastChangedBy,
+   LastChangedAt,
+   LocalLastChangedAt;
+
+  create;
+  update;
+  delete;
+
+  mapping for zest_ai_prov
+  {
+    ProviderId = provider_id;
+    ProviderType = provider_type;
+    Description = description;
+    ModelId = model_id;
+    CommScenario = comm_scenario;
+    OutboundService = outbound_service;
+    ApiPath = api_path;
+    ApiRevision = api_revision;
+    ApiKey = api_key;
+    AwsRegion = aws_region;
+    MaxTokens = max_tokens;
+    Temperature = temperature;
+    IsActive = is_active;
+    IsDefault = is_default;
+    Priority = priority;
+    CreatedBy = created_by;
+    CreatedAt = created_at;
+    LastChangedBy = last_changed_by;
+    LastChangedAt = last_changed_at;
+    LocalLastChangedAt = local_last_changed_at;
+  }
+}

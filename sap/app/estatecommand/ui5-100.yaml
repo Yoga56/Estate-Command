@@ -1,5 +1,4 @@
-# Client 80 (development): run from a local machine, signs in
-# through the browser (reentrance ticket), no destination needed.
+# Same as ui5.yaml, against client 100, where the communication arrangements and AI keys are.
 specVersion: "3.1"
 metadata:
   name: zestate.command
@@ -18,8 +17,8 @@ server:
           version: 1.136.0
         backend:
           - path: /sap
-            url: https://my402244.s4hana.cloud.sap
-            authenticationType: reentranceTicket
+            # client 100
+            destination: my402225
     - name: fiori-tools-appreload
       afterMiddleware: compression
       configuration:
