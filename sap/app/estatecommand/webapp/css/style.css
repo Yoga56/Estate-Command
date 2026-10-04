@@ -53,7 +53,12 @@
 .estDocument { font-family: var(--sapFontMonospaceFamily, monospace); white-space: pre-wrap; font-size: 0.8125rem; }
 
 /* --- map */
-.estMapFull { position: absolute; inset: 0; z-index: 0; }
+/* layers: the map's own panes (400) and its vignette (450), then the ribbons (900), then the map's buttons,
+   scale and attribution (Leaflet: 1000), then the glass that floats over it all (1100+). The map makes no
+   stacking context of its own, so the ribbons can pass between its imagery and its buttons. */
+.estMapFull { position: absolute; inset: 0; }
+/* all of that stays inside the page: dropdowns and dialogs (UI5's static area) still open above it */
+.estPage { isolation: isolate; }
 .estMap { width: 100%; background: #0b1410; font-family: var(--sapFontFamily); }
 .estMap::after { /* vignette: the eye goes to the middle, the glass reads at the edges */
   content: ""; position: absolute; inset: 0; z-index: 450; pointer-events: none;
@@ -153,14 +158,14 @@
 .estFireStrip.sapMMsgStrip { margin: 0 var(--estPad) 10px; border-radius: 12px; }
 
 /* --- top bar */
-.estTopBar { position: absolute; top: var(--estGap); left: var(--estGap); z-index: 10; display: flex; gap: 12px;
+.estTopBar { position: absolute; top: var(--estGap); left: var(--estGap); z-index: 1100; display: flex; gap: 12px;
   padding: 8px 10px 8px 14px; max-width: calc(100% - var(--estPanelWidth) - 4 * var(--estGap)); }
 .estBrandIcon { font-size: 1.5rem; color: var(--sapBrandColor); }
 .estBrand { display: flex; flex-direction: column; min-width: 0; margin-right: 6px; }
 .estBrand .sapMTitle { font-size: 1rem; font-weight: 700; }
 
 /* --- legend */
-.estLegend { position: absolute; top: calc(var(--estGap) + 68px); left: var(--estGap); z-index: 10; width: 300px;
+.estLegend { position: absolute; top: calc(var(--estGap) + 68px); left: var(--estGap); z-index: 1100; width: 300px;
   padding: 6px 8px 8px 14px; display: flex; flex-direction: column; }
 .estLegendHead { display: flex; gap: 8px; }
 .estLegendHead .sapMTitle { font-size: 0.8125rem; }
@@ -180,11 +185,11 @@
 /* --- block stripes: no box, a fan of ribbons in the lower left corner, cut on the diagonal;
    they run in from the bottom right and flow to the top left */
 .estStripesStage { position: absolute; left: 0; bottom: 0; width: 36%; height: 56%; min-width: 300px; min-height: 320px;
-  max-width: 600px; max-height: 640px; z-index: 6; pointer-events: none; clip-path: polygon(0 0, 0 100%, 100% 100%); }
+  max-width: 600px; max-height: 640px; z-index: 900; pointer-events: none; clip-path: polygon(0 0, 0 100%, 100% 100%); }
 .estStripesStage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
 /* --- block card */
-.estBlockCard { position: absolute; left: var(--estGap); bottom: var(--estGap); z-index: 11; width: 400px;
+.estBlockCard { position: absolute; left: var(--estGap); bottom: var(--estGap); z-index: 1101; width: 400px;
   max-width: calc(100% - 2 * var(--estGap)); max-height: 34%; display: flex; flex-direction: column;
   overflow: hidden; animation: estRise 0.36s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .estBlockCard.estLeaving { animation: estSink 0.42s cubic-bezier(0.4, 0, 1, 1) forwards; pointer-events: none; }
@@ -233,7 +238,7 @@
 .estPage .sapMInputBaseInner, .estPop .sapMInputBaseInner { background: transparent; }
 
 /* --- plan panel */
-.estPanel { position: absolute; top: var(--estGap); right: var(--estGap); bottom: var(--estGap); z-index: 12;
+.estPanel { position: absolute; top: var(--estGap); right: var(--estGap); bottom: var(--estGap); z-index: 1102;
   width: var(--estPanelWidth); max-width: calc(100% - 2 * var(--estGap)); display: flex; flex-direction: column;
   overflow: hidden; transition: transform 0.38s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease; }
 /* the panel's rows keep their height; only the scrolling part gives way */
@@ -242,7 +247,7 @@
 .estFireStrip.sapMMsgStrip { height: auto; }
 .estPanel.estCollapsed { transform: translateX(calc(100% + 2 * var(--estGap))); opacity: 0; pointer-events: none; }
 /* the handle of the collapsed panel: theme glass like the map buttons */
-.estPage .estPanelHandle.sapMBtn { position: absolute; top: var(--estGap); right: var(--estGap); z-index: 12;
+.estPage .estPanelHandle.sapMBtn { position: absolute; top: var(--estGap); right: var(--estGap); z-index: 1102;
   height: auto; padding: 0; background: none; }
 .estPage .estPanelHandle.sapMBtn .sapMBtnInner { height: 44px; min-width: 44px; padding: 0 14px 0 10px; border-radius: 14px;
   background: var(--estGlassStrong) !important; border: 1px solid var(--estGlassBorder);
@@ -388,7 +393,7 @@ html.estApp .sapMPopover .sapMLIBFocusable:focus { outline-offset: -2px; }
   .estTopBar { right: var(--estGap); max-width: none; }
   .estBrand { flex: 0 0 auto; }
   .estTopBar .sapMSlt { width: auto !important; flex: 1 1 8rem; min-width: 8rem; }
-  .estPanel { top: 40%; }
+  .estPanel { top: 50%; } /* a medium sheet: half the page */
   .estPanelHead { padding: 8px 4px 0 var(--estPad); }
   .estPanelHead .sapMTitle { font-size: 1rem; }
   .estOps { padding: 4px var(--estPad); }
@@ -408,9 +413,11 @@ html.estApp .sapMPopover .sapMLIBFocusable:focus { outline-offset: -2px; }
   .estBlockCard { max-height: calc(60% - 140px); }
   .estPanel { bottom: calc(var(--estGap) + env(safe-area-inset-bottom, 0px)); }
   /* the ribbons sit in a real corner: above the sheet when it is open, at the bottom when it is closed */
-  .estStripesStage { bottom: 60%; height: 30%; min-height: 180px; width: 88%; min-width: 0; }
-  /* above the row of attribution and scale, so the ribbons never run over them */
-  .estPanelClosed .estStripesStage { bottom: calc(var(--estGap) + 40px + env(safe-area-inset-bottom, 0px)); height: 40%; width: 92%; }
+  .estStripesStage { bottom: 50%; height: 30%; min-height: 180px; width: 88%; min-width: 0; }
+  /* on the floor of the page, under the map's buttons, scale and attribution */
+  .estPanelClosed .estStripesStage { bottom: 0; height: 40%; width: 92%; }
+  /* with the sheet up the attribution has no room; it comes back with the map */
+  .estPage:not(.estPanelClosed) .estMap .leaflet-control-attribution { display: none; }
   /* with the sheet up there is no room left: the block card and its ribbons wait until it goes down */
   .estPage:not(.estPanelClosed) .estBlockCard,
   .estPage:not(.estPanelClosed) .estStripesStage { visibility: hidden; }

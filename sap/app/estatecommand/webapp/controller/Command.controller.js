@@ -78,6 +78,7 @@ sap.ui.define([
       this.byId("page").addEventDelegate({ onAfterRendering: () => {
         this._applyPanelWidth();
         this._watchTopBar();
+        this._insets();
       } });
       this._insets();
       this._onResize = () => {
@@ -292,9 +293,16 @@ sap.ui.define([
       const open = this._view.getProperty("/panelOpen");
       const narrow = window.matchMedia && window.matchMedia(NARROW).matches;
       this._view.setProperty("/insetRight", open && !narrow ? this._panelWidth + 32 : 0);
-      // the sheet covers the lower 48 % of a narrow window, 60 % of a phone (style.css)
-      const phone = window.matchMedia && window.matchMedia(PHONE).matches;
-      this._view.setProperty("/insetBottom", open && narrow ? Math.round(window.innerHeight * (phone ? 0.6 : 0.48)) : 0);
+      // on a narrow window the sheet covers the lower part of the page: measured where it stands
+      // (its top, not its slide), else the share style.css gives it
+      let bottom = 0;
+      if (open && narrow) {
+        const panel = this.byId("panel").getDomRef();
+        const ground = panel && panel.offsetParent;
+        const phone = window.matchMedia(PHONE).matches;
+        bottom = ground ? ground.clientHeight - panel.offsetTop : window.innerHeight * (phone ? 0.5 : 0.48);
+      }
+      this._view.setProperty("/insetBottom", Math.max(0, Math.round(bottom)));
     },
 
     /** On narrow windows the block card hangs one gap below the top bar, whatever height the bar takes (style.css) */
