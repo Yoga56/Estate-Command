@@ -223,8 +223,9 @@ The map fills the page; the plan, the legend and the block card float over it on
 (`backdrop-filter`) and follow the user's theme (Horizon light or dark). The plan panel collapses to
 the *Plan* handle; the operation tiles at its top show the latest plan of each operation. Every
 button and field is a frosted pill. A block clicked on the map sends its facts across the map as
-kinetic type on twisting stripes - no box, a tilted band over the lower left that runs in stripe by
-stripe and runs out again when the block card is closed (`control/BlockStripes.js`, canvas 2D, after
+kinetic type on twisting stripes - no box, a fan of ribbons in the lower left corner, cut on the
+diagonal, that runs in stripe by stripe from the bottom right, flows up to the top left and leaves
+that way when the block card is closed (`control/BlockStripes.js`, canvas 2D, after
 Space Type Generator's *_v.stripes*). The gear on the block card sets preset, colours, which facts,
 angle, stripes, twist, ripple, speed and text size; the settings stay in the browser
 (`localStorage`) per user. Users who ask the system for reduced motion get still stripes without
