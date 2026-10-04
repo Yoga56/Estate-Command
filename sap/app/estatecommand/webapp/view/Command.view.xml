@@ -69,6 +69,7 @@
       <Button id="panelHandle" class="estPanelHandle" icon="sap-icon://navigation-left-arrow" text="Plan"
               visible="{= !${view>/panelOpen} }" press=".onTogglePanel" tooltip="Show the plan"/>
       <VBox id="panel" class="estGlass estPanel" renderType="Bare">
+        <core:HTML content="&lt;div class=&quot;estPanelGrip&quot; role=&quot;separator&quot; aria-orientation=&quot;vertical&quot; aria-label=&quot;Resize the plan panel&quot; tabindex=&quot;0&quot; title=&quot;Drag to resize, double-click to reset&quot;&gt;&lt;/div&gt;"/>
         <HBox class="estPanelHead" alignItems="Center" renderType="Bare">
           <Title text="Tomorrow's work" level="H2" wrapping="false"/>
           <Button type="Transparent" icon="sap-icon://navigation-right-arrow" tooltip="Hide the plan" press=".onTogglePanel"/>
@@ -160,36 +161,51 @@
               <IconTabFilter key="why" text="Why">
                 <VBox renderType="Bare" class="estSection">
                   <Text text="{view>/plan/WhyText}" renderWhitespace="true"/>
-                  <f:SimpleForm editable="false" layout="ResponsiveGridLayout" labelSpanL="6" labelSpanM="6" labelSpanS="6"
-                                backgroundDesign="Transparent" class="estForm">
-                    <Label text="Blocks due / assigned"/><Text text="{view>/plan/BlocksDue} / {view>/plan/BlocksAssigned}"/>
-                    <Label text="Man-days available / needed"/><Text text="{view>/plan/CapacityMd} / {view>/plan/ManDaysDue}"/>
-                    <Label text="Deferral recovered (IDR)"/><Text text="{view>/plan/ValueRecovered} of {view>/plan/DeferralDue}"/>
-                    <Label text="Relaxed upper bound (IDR)"/><Text text="{view>/plan/UpperBound} (gap {view>/plan/GapPercent}%)"/>
-                    <Label text="Contiguity bonus / cost"/><Text text="{view>/plan/ContiguityPercent}% / {view>/plan/ContiguityCost} IDR"/>
-                    <Label text="Swap improvements"/><Text text="{view>/plan/Swaps}"/>
-                    <Label text="Rain"/><Text text="{view>/plan/RainMm} mm, {view>/plan/RainProbability}% ({view>/plan/WeatherSource})"/>
-                    <Label text="Changes set on the plan"/><Text text="{view>/plan/Overrides}"/>
-                  </f:SimpleForm>
-                  <Table items="{ path: 'view>/plan/_Lines', templateShareable: false }" growing="true" growingThreshold="40"
-                         backgroundDesign="Transparent" class="estTable">
-                    <columns>
-                      <Column><Text text="Crew"/></Column>
-                      <Column><Text text="Block"/></Column>
-                      <Column hAlign="End"><Text text="Urgency"/></Column>
-                      <Column hAlign="End"><Text text="Man-days"/></Column>
-                      <Column hAlign="End"><Text text="Deferral"/></Column>
-                    </columns>
-                    <items>
-                      <ColumnListItem highlight="{= ${view>IsAssigned} ? 'None' : 'Error' }">
-                        <Text text="{= ${view>IsAssigned} ? ${view>CrewCode} + ' #' + ${view>SequenceNo} : 'not reached' }"/>
-                        <Text text="{view>BlockLabel}"/>
-                        <Text text="{view>Urgency}"/>
-                        <Text text="{view>ManDays}"/>
-                        <Text text="{view>Deferral}"/>
-                      </ColumnListItem>
-                    </items>
-                  </Table>
+                  <!-- the scheduler's figures: label over value, two to a row -->
+                  <HBox items="{ path: 'view>/whyFacts', templateShareable: false }" renderType="Bare" class="estFacts">
+                    <VBox renderType="Bare" class="estFact">
+                      <Text text="{view>label}" class="estFactLabel"/>
+                      <Text text="{view>value}" class="estFactValue"/>
+                      <Text text="{view>note}" class="estMuted" visible="{= !!${view>note} }"/>
+                    </VBox>
+                  </HBox>
+
+                  <!-- the plan's lines: a grid of its own, reached first, then the blocks left waiting -->
+                  <VBox renderType="Bare" class="estGrid">
+                    <HBox renderType="Bare" class="estGridRow estGridHead">
+                      <Text text="Crew"/><Text text="Block"/><Text text="Urgency" class="estNum" textAlign="End"/>
+                      <Text text="Man-days" class="estNum" textAlign="End"/><Text text="Cost/day" class="estNum" textAlign="End"/>
+                    </HBox>
+                    <Text text="Reached &#183; {view>/lineCounts/reached}" class="estGridGroup"/>
+                    <VBox items="{ path: 'view>/lineRows/reached', templateShareable: false }" renderType="Bare">
+                      <HBox renderType="Bare" class="estGridRow">
+                        <HBox renderType="Bare" class="estGridCrew" alignItems="Center">
+                          <core:Icon src="sap-icon://color-fill" color="{view>color}" size="0.75rem"/>
+                          <Text text="{view>crew}" wrapping="false"/>
+                          <Text text="{view>seq}" class="estMuted" wrapping="false"/>
+                        </HBox>
+                        <Text text="{view>block}" wrapping="false"/>
+                        <Text text="{view>urgency}" class="estNum" textAlign="End" wrapping="false"/>
+                        <Text text="{view>manDays}" class="estNum" textAlign="End" wrapping="false"/>
+                        <Text text="{view>waiting}" class="estNum" textAlign="End" wrapping="false" tooltip="{view>waitingFull}"/>
+                      </HBox>
+                    </VBox>
+                    <Text text="Not reached &#183; {view>/lineCounts/missed}" class="estGridGroup estGridGroup--missed"
+                          visible="{= ${view>/lineCounts/missed} > 0 }"/>
+                    <VBox items="{ path: 'view>/lineRows/missed', templateShareable: false }" renderType="Bare">
+                      <HBox renderType="Bare" class="estGridRow estGridRow--missed">
+                        <HBox renderType="Bare" class="estGridCrew" alignItems="Center">
+                          <core:Icon src="sap-icon://status-negative" color="Negative" size="0.75rem"/>
+                          <Text text="waiting" class="estMuted" wrapping="false"/>
+                        </HBox>
+                        <Text text="{view>block}" wrapping="false"/>
+                        <Text text="{view>urgency}" class="estNum" textAlign="End" wrapping="false"/>
+                        <Text text="{view>manDays}" class="estNum" textAlign="End" wrapping="false"/>
+                        <Text text="{view>waiting}" class="estNum" textAlign="End" wrapping="false" tooltip="{view>waitingFull}"/>
+                      </HBox>
+                    </VBox>
+                    <Text text="Cost/day: what one more day of waiting costs on the block, IDR." class="estMuted estGridFoot"/>
+                  </VBox>
                 </VBox>
               </IconTabFilter>
 

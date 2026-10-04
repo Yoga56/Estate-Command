@@ -4,7 +4,9 @@
 .estPage, .estPop {
   --estGap: 16px;
   --estPanelWidth: 440px;
-  --estGlassBg: rgba(255, 255, 255, 0.62);
+  --estGlassBg: rgba(255, 255, 255, 0.74);
+  --estGlassStrong: rgba(255, 255, 255, 0.86);
+  --estInk: rgba(29, 45, 62, 0.72);
   --estGlassBorder: rgba(255, 255, 255, 0.45);
   --estGlassShadow: 0 12px 32px rgba(4, 16, 10, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.35);
   --estRadius: 18px;
@@ -14,7 +16,9 @@
 }
 @supports (background: color-mix(in srgb, red 50%, transparent)) {
   .estPage, .estPop {
-    --estGlassBg: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 64%, transparent);
+    --estGlassBg: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 74%, transparent);
+    --estGlassStrong: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 86%, transparent);
+    --estInk: color-mix(in srgb, var(--sapTextColor, #1d2d3e) 72%, transparent);
     --estGlassBorder: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 45%, transparent);
     --estPillBg: color-mix(in srgb, var(--sapButton_Background, #fff) 42%, transparent);
     --estPillHover: color-mix(in srgb, var(--sapButton_Hover_Background, #eaecee) 70%, transparent);
@@ -27,8 +31,8 @@
 /* --- glass */
 .estGlass {
   background: var(--estGlassBg);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  backdrop-filter: blur(24px) saturate(120%);
   border: 1px solid var(--estGlassBorder);
   border-radius: var(--estRadius);
   box-shadow: var(--estGlassShadow);
@@ -37,7 +41,12 @@
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .estGlass { background: var(--sapGroup_ContentBackground, #fff); }
 }
-.estMuted { color: var(--sapContent_LabelColor); font-size: 0.8125rem; }
+.estMuted, .estMuted.sapMText { color: var(--estInk); font-size: 0.8125rem; }
+/* the panel and the block card carry the reading: nearly opaque glass */
+.estPanel.estGlass, .estBlockCard.estGlass { background: var(--estGlassStrong); }
+.estPanel .sapMLabel, .estKpiLabel.sapMText, .estPanel .sapMITBText { color: var(--estInk); }
+.estPanel .sapMText, .estBlockCard .sapMText { color: var(--sapTextColor); }
+.estPanel .estMuted.sapMText, .estBlockCard .estMuted.sapMText { color: var(--estInk); }
 .estDocument { font-family: var(--sapFontMonospaceFamily, monospace); white-space: pre-wrap; font-size: 0.8125rem; }
 
 /* --- map */
@@ -71,8 +80,12 @@
 
 .estMap .leaflet-right { right: var(--estInsetRight, 0px); transition: right 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .estMap .leaflet-bottom { bottom: var(--estInsetBottom, 0px); transition: bottom 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
-.estMap .leaflet-bottom.leaflet-right { display: flex; flex-direction: column-reverse; align-items: flex-end; }
-.estMapBar { display: flex; flex-direction: column; overflow: hidden; margin: 0 var(--estGap) 8px 0 !important;
+.estMap .leaflet-bottom.leaflet-right { display: flex; flex-direction: row; align-items: flex-end; gap: 8px;
+  padding: 0 var(--estGap) 8px 0; }
+.estMap .leaflet-bottom.leaflet-right .leaflet-control { margin: 0 !important; float: none; clear: none; }
+.estMap .leaflet-control-attribution { order: 1; }
+.estMap .leaflet-control-scale { order: 2; }
+.estMapBar { order: 3; display: flex; flex-direction: column; overflow: hidden;
   border-radius: 14px; background: rgba(12, 22, 17, 0.55); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.18); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); }
 .estMapBtn { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 0;
@@ -81,11 +94,10 @@
 .estMapBtn + .estMapBtn { border-top: 1px solid rgba(255, 255, 255, 0.12); }
 .estMapBtn:hover { background: rgba(255, 255, 255, 0.14); }
 .estMapBtn:focus-visible { outline: 2px solid var(--sapContent_FocusColor, #0070f2); outline-offset: -2px; }
-.estMap .leaflet-control-scale { margin: 0 var(--estGap) 8px 0 !important; }
 .estMap .leaflet-control-scale-line { background: rgba(12, 22, 17, 0.5); color: #fff; border-color: rgba(255, 255, 255, 0.7);
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
-.estMap .leaflet-control-attribution { background: rgba(12, 22, 17, 0.45); color: rgba(255, 255, 255, 0.75);
-  border-radius: 8px 0 0 0; font-size: 10px; }
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); margin: 0; }
+.estMap .leaflet-control-attribution { background: rgba(12, 22, 17, 0.5); color: rgba(255, 255, 255, 0.8);
+  border-radius: 999px; padding: 2px 10px; font-size: 10px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .estMap .leaflet-control-attribution a { color: rgba(255, 255, 255, 0.9); }
 
 .estTip.leaflet-tooltip { background: rgba(10, 20, 15, 0.78); color: #fff; border: 1px solid rgba(255, 255, 255, 0.18);
@@ -235,6 +247,40 @@
 .estTable .sapMListTblHeader, .estTable .sapMListTblRow, .estTable .sapMListTblHeaderCell,
 .estCrews .sapMLIB, .estCardLines .sapMLIB, .estSection .sapMLIB { background: transparent !important; }
 
+/* --- resizing the panel: a grip along its left edge */
+.estPanelGrip { position: absolute; left: 0; top: 0; bottom: 0; width: 12px; cursor: col-resize; z-index: 2; touch-action: none; }
+.estPanelGrip::after { content: ""; position: absolute; left: 4px; top: 50%; width: 4px; height: 44px; margin-top: -22px;
+  border-radius: 2px; background: var(--estInk); opacity: 0; transition: opacity 0.2s; }
+.estPanel:hover .estPanelGrip::after, .estPanelGrip:focus-visible::after, .estResizing .estPanelGrip::after { opacity: 0.6; }
+.estPanelGrip:focus-visible { outline: 2px solid var(--sapContent_FocusColor, #0070f2); outline-offset: -2px; border-radius: var(--estRadius) 0 0 var(--estRadius); }
+.estResizing, .estResizing * { cursor: col-resize !important; user-select: none; }
+.estResizing .estPanel, .estResizing .estMap .leaflet-right { transition: none; }
+
+/* --- Why: the scheduler's figures, two to a row */
+.estFacts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.estFact { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; border-radius: 12px; min-width: 0;
+  background: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 60%, transparent); }
+.estFactLabel.sapMText { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--estInk); }
+.estFactValue.sapMText { font-size: 0.9375rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* --- Why: the plan's lines as a grid */
+.estGrid { display: flex; flex-direction: column; border-radius: 12px; overflow: hidden;
+  background: color-mix(in srgb, var(--sapGroup_ContentBackground, #fff) 60%, transparent); }
+.estGrid .estGridRow { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 0.9fr) minmax(0, 1fr);
+  gap: 8px; align-items: center; padding: 7px 12px; border-top: 1px solid color-mix(in srgb, var(--sapList_BorderColor, #e5e5e5) 70%, transparent); }
+.estGrid .estGridRow:hover { background: color-mix(in srgb, var(--sapList_Hover_Background, #eaecee) 60%, transparent); }
+.estGrid .estGridHead { border-top: 0; padding-top: 9px; }
+.estGrid .estGridHead .sapMText { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--estInk); }
+.estGrid .sapMText { display: block; font-size: 0.875rem; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; }
+.estGrid .estNum.sapMText { text-align: right; }
+.estGrid .estGridCrew { display: flex; gap: 6px; min-width: 0; }
+.estGrid .estGridCrew .sapMText { flex: 0 1 auto; }
+.estGridGroup.sapMText { padding: 10px 12px 4px; font-size: 0.6875rem !important; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--sapPositiveTextColor, #256f3a) !important; }
+.estGridGroup--missed.sapMText { color: var(--sapNegativeTextColor, #aa0808) !important;
+  border-top: 1px solid color-mix(in srgb, var(--sapList_BorderColor, #e5e5e5) 70%, transparent); }
+.estGridFoot.sapMText { padding: 8px 12px 10px; font-size: 0.75rem !important; }
+
 /* --- stripes settings: the popover is glass too */
 .sapMPopover.estPop { background: var(--estGlassBg); border: 1px solid var(--estGlassBorder); border-radius: var(--estRadius);
   box-shadow: var(--estGlassShadow); -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%);
@@ -245,7 +291,8 @@
 /* narrow windows: the panel takes the lower half, the map the upper */
 @media (max-width: 900px) {
   .estPage { --estPanelWidth: calc(100% - 2 * var(--estGap)); }
-  .estPanel { top: 52%; }
+  .estPanel { top: 52%; left: var(--estGap); width: auto; }
+  .estPanelGrip { display: none; }
   .estPanel.estCollapsed { transform: translateY(calc(100% + 2 * var(--estGap))); }
   .estTopBar { max-width: calc(100% - 2 * var(--estGap)); }
   .estLegend { display: none; }

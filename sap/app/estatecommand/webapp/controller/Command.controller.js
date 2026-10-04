@@ -29,19 +29,37 @@ sap.ui.define([
     { key: "road", text: "Road" }, { key: "division", text: "Division" }
   ];
   const STRIPES_KEY = "zestate.command.stripes";
-  const PANEL_INSET = 472; // panel width + its margins
+  const PANEL_WIDTH = 440; // default, px; the user drags it wider or narrower
+  const PANEL_KEY = "zestate.command.panelWidth";
   const NARROW = "(max-width: 900px)"; // the panel becomes a sheet over the lower half (style.css)
 
   /** The message an OData failure carries, else the error text. */
   const messageOf = (error) => (error && error.error && error.error.message) || (error && error.message) || String(error);
   const num = (value, digits) => Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: digits === undefined ? 1 : digits });
   const statusOf = (code) => STATUS[code] || { text: code || "No plan", state: "None" };
+  const compact = (value) => new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 2 })
+    .format(Number(value) || 0);
+  const readStore = (key) => {
+    try {
+      return window.localStorage.getItem(key);
+    } catch (e) {
+      return null;
+    }
+  };
+  const writeStore = (key, value) => {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch (e) {
+      // storage blocked: the value lasts for this session only
+    }
+  };
 
   return Controller.extend("zestate.command.controller.Command", {
     onInit: function () {
       this._view = new JSONModel({
         estates: [], estate: "", subtitle: "", operation: "harvest", ops: [], plans: [], planUuid: "", plan: null,
         blocks: [], crews: [], legendTitle: "", legendOpen: true, panelOpen: true, insetRight: 0, insetBottom: 0,
+        whyFacts: [], lineRows: { reached: [], missed: [] }, lineCounts: { reached: 0, missed: 0 },
         selected: null, decision: { note: "", dueDate: null, expected: "" }, replan: Object.assign({}, EMPTY_REPLAN),
         question: "", answer: null, handover: null, outcomes: [], stores: []
       });
@@ -51,9 +69,19 @@ sap.ui.define([
       this._stripes.attachPropertyChange(this.onStripesChange, this);
       this.getView().setModel(this._stripes, "stripes");
 
+      this._panelWidth = this._clampWidth(Number(readStore(PANEL_KEY)) || PANEL_WIDTH);
+      this.byId("page").addEventDelegate({ onAfterRendering: () => this._applyPanelWidth() });
       this._insets();
-      this._onResize = () => this._insets();
+      this._onResize = () => {
+        this._panelWidth = this._clampWidth(this._panelWidth);
+        this._applyPanelWidth();
+        this._insets();
+      };
       window.addEventListener("resize", this._onResize);
+      this._onGrip = (event) => this._grip(event);
+      document.addEventListener("pointerdown", this._onGrip);
+      document.addEventListener("keydown", this._onGrip);
+      document.addEventListener("dblclick", this._onGrip);
 
       this._service = this.getOwnerComponent().getService();
       this._plansByOp = {};
@@ -69,6 +97,7 @@ sap.ui.define([
 
     onExit: function () {
       window.removeEventListener("resize", this._onResize);
+      ["pointerdown", "keydown", "dblclick"].forEach((type) => document.removeEventListener(type, this._onGrip));
     },
 
     onEstateChange: function () {
@@ -215,8 +244,61 @@ sap.ui.define([
     _insets: function () {
       const open = this._view.getProperty("/panelOpen");
       const narrow = window.matchMedia && window.matchMedia(NARROW).matches;
-      this._view.setProperty("/insetRight", open && !narrow ? PANEL_INSET : 0);
+      this._view.setProperty("/insetRight", open && !narrow ? this._panelWidth + 32 : 0);
       this._view.setProperty("/insetBottom", open && narrow ? Math.round(window.innerHeight * 0.48) : 0);
+    },
+
+    // --- the plan panel's width: drag its left edge, arrow keys on the edge, double-click to reset
+
+    _clampWidth: function (px) {
+      return Math.round(Math.max(340, Math.min(px, Math.min(960, window.innerWidth - 360))));
+    },
+
+    _applyPanelWidth: function () {
+      const page = this.byId("page").getDomRef();
+      if (page) {
+        page.style.setProperty("--estPanelWidth", this._panelWidth + "px");
+      }
+    },
+
+    _setPanelWidth: function (px, final) {
+      this._panelWidth = this._clampWidth(px);
+      this._applyPanelWidth();
+      if (final) {
+        writeStore(PANEL_KEY, String(this._panelWidth));
+        this._insets();
+      }
+    },
+
+    _grip: function (event) {
+      const grip = event.target && event.target.closest && event.target.closest(".estPanelGrip");
+      if (!grip) {
+        return;
+      }
+      if (event.type === "dblclick") {
+        this._setPanelWidth(PANEL_WIDTH, true);
+      } else if (event.type === "keydown") {
+        const step = { ArrowLeft: 24, ArrowRight: -24 }[event.key];
+        if (step) {
+          event.preventDefault();
+          this._setPanelWidth(this._panelWidth + step, true);
+        }
+      } else {
+        event.preventDefault();
+        const startX = event.clientX;
+        const startWidth = this._panelWidth;
+        const page = this.byId("page");
+        page.addStyleClass("estResizing");
+        const move = (e) => this._setPanelWidth(startWidth + startX - e.clientX, false);
+        const up = (e) => {
+          document.removeEventListener("pointermove", move);
+          document.removeEventListener("pointerup", up);
+          page.removeStyleClass("estResizing");
+          this._setPanelWidth(startWidth + startX - e.clientX, true);
+        };
+        document.addEventListener("pointermove", move);
+        document.addEventListener("pointerup", up);
+      }
     },
 
     _stripesChanged: function () {
@@ -317,6 +399,7 @@ sap.ui.define([
         crew.manDays = Math.round((crew.manDays + Number(l.ManDays)) * 100) / 100;
       });
       this._view.setProperty("/crews", Object.values(crews));
+      this._why(plan, colors);
       this._legend();
 
       // the block on the card follows the plan on screen
@@ -327,6 +410,35 @@ sap.ui.define([
         const assigned = lines.find((l) => l.IsAssigned);
         this._select(block, lines, assigned ? colors[assigned.CrewCode] : lines.length ? "#ff4d4f" : "#ffffff");
       }
+    },
+
+    /** The Why tab: the scheduler's figures and the plan's lines, formatted for reading */
+    _why: function (plan, colors) {
+      const lines = plan._Lines || [];
+      const row = (l) => ({
+        crew: l.CrewCode,
+        seq: "#" + l.SequenceNo,
+        color: colors[l.CrewCode] || "#888888",
+        block: l.BlockLabel,
+        urgency: num(l.Urgency, 2),
+        manDays: num(l.ManDays, 2),
+        waiting: compact(l.Deferral),
+        waitingFull: num(l.Deferral, 0) + " IDR"
+      });
+      const reached = lines.filter((l) => l.IsAssigned).map(row);
+      const missed = lines.filter((l) => !l.IsAssigned).map(row);
+      this._view.setProperty("/lineRows", { reached: reached, missed: missed });
+      this._view.setProperty("/lineCounts", { reached: reached.length, missed: missed.length });
+      this._view.setProperty("/whyFacts", [
+        { label: "Blocks", value: plan.BlocksAssigned + " of " + plan.BlocksDue + " due" },
+        { label: "Man-days", value: num(plan.ManDaysDue) + " needed", note: num(plan.CapacityMd) + " available" },
+        { label: "Value recovered", value: compact(plan.ValueRecovered) + " IDR", note: "of " + compact(plan.DeferralDue) + " due" },
+        { label: "Upper bound", value: compact(plan.UpperBound) + " IDR", note: "gap " + num(plan.GapPercent) + "%" },
+        { label: "Contiguity", value: num(plan.ContiguityPercent) + "% bonus", note: "costs " + compact(plan.ContiguityCost) + " IDR" },
+        { label: "Swaps", value: String(plan.Swaps || 0) + " improvements" },
+        { label: "Rain", value: num(plan.RainMm) + " mm, " + num(plan.RainProbability, 0) + "%", note: plan.WeatherSource },
+        { label: "Changes", value: plan.Overrides || "none" }
+      ]);
     },
 
     _legend: function () {
