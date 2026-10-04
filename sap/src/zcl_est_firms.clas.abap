@@ -57,7 +57,7 @@ CLASS zcl_est_firms DEFINITION
       RETURNING VALUE(result) TYPE string
       RAISING   zcx_est_ai.
 
-    "! FIRMS' own answer on the key (/api/map_key): its transaction limit and use, or why not
+    "! FIRMS' own answer on the key (/mapserver/mapkey_status): its transaction limit and use, or why not
     CLASS-METHODS check_key
       RETURNING VALUE(result) TYPE string.
 
@@ -80,6 +80,13 @@ CLASS zcl_est_firms DEFINITION
       IMPORTING csv           TYPE string
                 product       TYPE string
       RETURNING VALUE(result) TYPE ty_hotspots
+      RAISING   zcx_est_ai.
+
+    "! GET on FIRMS. When the arrangement already puts /api in front of every path, FIRMS
+    "! answers "Invalid API call." to /api/api/...: the call is repeated without our /api.
+    CLASS-METHODS fetch
+      IMPORTING path          TYPE string
+      RETURNING VALUE(result) TYPE string
       RAISING   zcx_est_ai.
 
     CLASS-METHODS coordinate
@@ -154,10 +161,7 @@ CLASS zcl_est_firms IMPLEMENTATION.
     SPLIT products AT ',' INTO TABLE DATA(product_list).
     LOOP AT product_list INTO DATA(product).
       TRY.
-          DATA(csv) = zcl_est_ai_http=>get( comm_scenario    = comm_scenario
-                                            outbound_service = outbound_service
-                                            path             = request_path( product = product area = area
-                                                                             days = result-days key = key ) ).
+          DATA(csv) = fetch( request_path( product = product area = area days = result-days key = key ) ).
           APPEND LINES OF parse( csv = csv product = product ) TO hotspots.
           result-known = abap_true.
         CATCH zcx_est_ai INTO DATA(error).
@@ -237,13 +241,27 @@ CLASS zcl_est_firms IMPLEMENTATION.
   METHOD check_key.
     TRY.
         DATA(key) = map_key( ).
-        result = zcl_est_ai_http=>get( comm_scenario    = comm_scenario
-                                       outbound_service = outbound_service
-                                       path             = |/api/map_key/?MAP_KEY={ key }| ).
+        result = fetch( |/mapserver/mapkey_status/?MAP_KEY={ key }| ).
         result = |key { substring( val = key len = 4 ) }...: { condense( substring( val = result
                                                       len = nmin( val1 = 300 val2 = strlen( result ) ) ) ) }|.
       CATCH zcx_est_ai INTO DATA(error).
         result = error->get_text( ).
+    ENDTRY.
+  ENDMETHOD.
+
+
+  METHOD fetch.
+    TRY.
+        result = zcl_est_ai_http=>get( comm_scenario    = comm_scenario
+                                       outbound_service = outbound_service
+                                       path             = path ).
+      CATCH zcx_est_ai INTO DATA(error).
+        IF NOT error->get_text( ) CS `Invalid API call` OR NOT path CP '/api/*'.
+          RAISE EXCEPTION error.
+        ENDIF.
+        result = zcl_est_ai_http=>get( comm_scenario    = comm_scenario
+                                       outbound_service = outbound_service
+                                       path             = substring( val = path off = 4 ) ).
     ENDTRY.
   ENDMETHOD.
 
