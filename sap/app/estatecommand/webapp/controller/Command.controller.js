@@ -51,7 +51,10 @@ sap.ui.define([
       this._busy(async () => {
         await this._show(this._service.generate(v.estate, v.operation));
         await this._loadPlans(true);
-        MessageToast.show("Plan made: figures from the scheduler, words from the model, every figure audited");
+        const plan = this._view.getProperty("/plan");
+        MessageToast.show(plan.Status === "F"
+          ? "Plan made from the scheduler's figures only: no AI provider answered (" + plan.ErrorText + ")"
+          : "Plan made: figures from the scheduler, words from " + plan.ModelId + ", " + plan.AuditChecked + " figures audited");
       });
     },
 

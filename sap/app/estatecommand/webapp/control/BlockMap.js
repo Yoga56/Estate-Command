@@ -104,6 +104,10 @@ sap.ui.define([
       const x = (lon) => pad + (lon - minLon) * kx * scale;
       const y = (lat) => height - pad - (lat - minLat) * scale;
       const marker = Math.max(4, Math.min(14, scale * 0.002));
+      // a block's on-screen size, for the sequence number inside it
+      const blockSize = blocks[0] && blocks[0].ring
+        ? Math.abs(x(Math.max(...blocks[0].ring.map((p) => p[0]))) - x(Math.min(...blocks[0].ring.map((p) => p[0]))))
+        : marker;
 
       const byBlock = {};
       (this.getLines() || []).forEach((line) => {
@@ -143,6 +147,7 @@ sap.ui.define([
           label.setAttribute("x", x(block.centroid[0]).toFixed(1));
           label.setAttribute("y", y(block.centroid[1]).toFixed(1));
           label.setAttribute("class", "estLabel");
+          label.setAttribute("font-size", Math.max(9, Math.min(22, blockSize * 0.3)).toFixed(0));
           label.textContent = assigned.SequenceNo;
           svg.appendChild(label);
         }
