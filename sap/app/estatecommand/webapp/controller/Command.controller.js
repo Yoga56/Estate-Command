@@ -410,6 +410,8 @@ sap.ui.define([
       // a new estate: its live hotspots are read again only when asked for
       this._firesFor = null;
       this._view.setProperty("/fires", []);
+      // the strip too: a live read of the last estate would otherwise hide this estate's plan fire text
+      this._view.setProperty("/fire", null);
       this.byId("map").showFires(false);
       this._view.setProperty("/blocks", await this._service.blocks(estate));
       this._view.setProperty("/stores", []);
@@ -539,6 +541,9 @@ sap.ui.define([
           live: true
         });
       } catch (error) {
+        if (estate !== this._view.getProperty("/estate")) {
+          return; // another estate was picked meanwhile
+        }
         this._firesFor = null;
         this._view.setProperty("/fire", { text: "Fire hotspots unknown: " + messageOf(error), type: "Information", count: 0, live: true });
       }

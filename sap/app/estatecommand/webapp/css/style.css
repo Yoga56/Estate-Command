@@ -423,3 +423,9 @@ html.estApp .sapMPopover .sapMLIBFocusable:focus { outline-offset: -2px; }
   .estPage:not(.estPanelClosed) .estBlockCard,
   .estPage:not(.estPanelClosed) .estStripesStage { visibility: hidden; }
 }
+
+/* planting year legend in the oil palm menu: the ramp the layer is coloured with, oldest to newest */
+.estYearRamp { display: flex; justify-content: space-between; margin-top: 5px; padding: 1px 4px; border-radius: 6px; font-style: normal;
+  font-size: 10px; font-weight: 700; color: #1b1b1b;
+  background: linear-gradient(90deg, rgb(76,201,240), rgb(128,237,153) 34%, rgb(233,255,112) 59%, rgb(255,183,3) 81%, rgb(255,77,109)); }
+.estYearRamp b { font-weight: 700; }

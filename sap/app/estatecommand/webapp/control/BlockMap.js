@@ -44,10 +44,32 @@ sap.ui.define([
   const FIRE_KEY = "zestate.command.fireLayer";
   // detections closer than this are one fire on the ground (a VIIRS pixel)
   const MERGE_KM = 0.375;
-  // global oil palm grid (Zenodo 13379129): the 609 cells of 100 x 100 km where oil palm was found
-  const GRID_URL = sap.ui.require.toUrl("zestate/command/data/oilpalm-grid.json");
-  const GRID_STYLE = { color: "#ffb703", weight: 1, opacity: 0.8, dashArray: "4 4", fillColor: "#ffb703", fillOpacity: 0.06,
-    interactive: false };
+  // oil palm layers from Zenodo 13379129; each is a GeoJSON file in webapp/data, read the first time it is shown
+  const PALM_LAYERS = [
+    { key: "grid", label: "Oil palm grid", note: "609 cells of 100 km where oil palm was found",
+      url: sap.ui.require.toUrl("zestate/command/data/oilpalm-grid.json"),
+      style: () => ({ color: "#ffb703", weight: 1, opacity: 0.8, dashArray: "4 4", fillColor: "#ffb703", fillOpacity: 0.06,
+        interactive: false }) },
+    { key: "year", label: "Planting year", note: "palm by year planted, EC tile (Papua)", ramp: true,
+      url: sap.ui.require.toUrl("zestate/command/data/oilpalm-blocks-by-year.json"),
+      style: (feature) => ({ color: yearColor(feature.properties.year), weight: 1, opacity: 0.95,
+        fillColor: yearColor(feature.properties.year), fillOpacity: 0.42 }),
+      tooltip: (p) => "<div class=\"estTipTitle\"><i style=\"background:" + yearColor(p.year) + "\"></i>" +
+        (p.year <= 1989 ? "Planted before 1990" : "Planted " + p.year) + (p.age_2021 > 0 ? " &middot; " + p.age_2021 + " yr" : "") +
+        "</div>" + escape(p.class) + " &middot; " + Number(p.area_ha).toLocaleString() + " ha" } ];
+  // planting year colour: cyan (old) through green and yellow to red (newest)
+  const YEAR_STOPS = [[1989, [76, 201, 240]], [2000, [128, 237, 153]], [2008, [233, 255, 112]], [2015, [255, 183, 3]], [2021, [255, 77, 109]]];
+  function yearColor(year) {
+    const y = Math.max(1989, Math.min(2021, Number(year) || 1989));
+    let i = 1;
+    while (i < YEAR_STOPS.length - 1 && y > YEAR_STOPS[i][0]) {
+      i++;
+    }
+    const [y0, c0] = YEAR_STOPS[i - 1];
+    const [y1, c1] = YEAR_STOPS[i];
+    const t = (y - y0) / (y1 - y0);
+    return "rgb(" + c0.map((v, k) => Math.round(v + (c1[k] - v) * t)).join(",") + ")";
+  }
   const touchOnly = () => !!(window.matchMedia && window.matchMedia("(hover: none)").matches);
   const sourceOf = (fire) => FIRE_SOURCES.find((source) => source.match(fire)) || { key: "other", label: "other" };
   const loadFireOptions = () => {
@@ -234,8 +256,11 @@ sap.ui.define([
       this._map.attributionControl.setPrefix(false);
       this._basemap = null;
       this._setBasemap("satellite");
-      this._gridLayer = L.layerGroup().addTo(this._map);
-      this._gridOn = false;
+      // oil palm layers sit under the blocks: one group each, filled the first time it is shown
+      this._palm = {};
+      PALM_LAYERS.forEach((def) => {
+        this._palm[def.key] = { def: def, group: L.layerGroup().addTo(this._map), on: false, data: null, failed: false };
+      });
       this._layer = L.layerGroup().addTo(this._map);
       this._fireLayer = L.layerGroup().addTo(this._map);
       // the live layer is off until asked for: reading it calls NASA FIRMS
@@ -252,7 +277,7 @@ sap.ui.define([
           { icon: ICONS.fit, title: "Fit the estate", press: () => this.fit(true) },
           { icon: ICONS.fire, title: "Live fire hotspots (NASA FIRMS): show, hide, choose the sources",
             press: (button, bar) => this._toggleFireMenu(bar, button) },
-          { icon: ICONS.grid, title: "Global oil palm grid (Zenodo): show or hide",
+          { icon: ICONS.grid, title: "Oil palm layers (Zenodo): the grid and planting year",
             press: (button, bar) => this._toggleGridMenu(bar, button) },
           { icon: ICONS.layers, title: "Choose the basemap", press: (button, bar) => this._toggleMenu(bar, button) }
         ]
@@ -309,7 +334,7 @@ sap.ui.define([
       }
     },
 
-    /** The grid menu: the global oil palm grid on or off; the file is read the first time it is shown */
+    /** The oil palm menu: one checkbox per layer; a layer's file is read the first time it is shown */
     _toggleGridMenu: function (bar, button) {
       if (!bar.menu.hidden && this._menuButton === button) {
         this._closeMenu();
@@ -317,21 +342,24 @@ sap.ui.define([
       }
       this._closeMenu();
       bar.menu.innerHTML = "";
-      const element = L.DomUtil.create("button", "estMapMenuItem estMapMenuItem--check", bar.menu);
-      const note = () => this._gridFailed ? "could not be read" : "609 cells of 100 km, Zenodo 13379129";
-      const paint = () => {
-        element.setAttribute("aria-checked", String(this._gridOn));
-        element.innerHTML = "<span>Oil palm grid<small>" + escape(note()) + "</small></span>" + ICONS.check;
-      };
       bar.menu.setAttribute("role", "menu");
-      bar.menu.setAttribute("aria-label", "Oil palm grid");
-      element.type = "button";
-      element.setAttribute("role", "menuitemcheckbox");
-      paint();
-      L.DomEvent.on(element, "click", async (event) => {
-        L.DomEvent.stop(event);
-        await this.showGrid(!this._gridOn);
+      bar.menu.setAttribute("aria-label", "Oil palm layers");
+      PALM_LAYERS.forEach((def) => {
+        const state = this._palm[def.key];
+        const element = L.DomUtil.create("button", "estMapMenuItem estMapMenuItem--check", bar.menu);
+        element.type = "button";
+        element.setAttribute("role", "menuitemcheckbox");
+        const paint = () => {
+          element.setAttribute("aria-checked", String(state.on));
+          element.innerHTML = "<span>" + escape(def.label) + "<small>" + escape(state.failed ? "could not be read" : def.note) + "</small>" +
+            (def.ramp ? "<i class=\"estYearRamp\"><b>1989</b><b>2021</b></i>" : "") + "</span>" + ICONS.check;
+        };
         paint();
+        L.DomEvent.on(element, "click", async (event) => {
+          L.DomEvent.stop(event);
+          await this.showPalm(def.key, !state.on);
+          paint();
+        });
       });
       bar.menu.hidden = false;
       button.setAttribute("aria-expanded", "true");
@@ -344,38 +372,47 @@ sap.ui.define([
         }
       };
       document.addEventListener("keydown", this._onMenuKey);
-      element.focus();
+      bar.menu.querySelector("button").focus();
     },
 
-    /** Shows or hides the oil palm grid; resolves once it is drawn (or could not be read) */
-    showGrid: async function (on) {
-      if (!this._map) {
+    /** Shows or hides an oil palm layer ("grid" or "year"); resolves once it is drawn (or could not be read) */
+    showPalm: async function (key, on) {
+      const state = this._palm && this._palm[key];
+      if (!state) {
         return this;
       }
-      this._gridOn = !!on;
-      const button = this.getDomRef().querySelectorAll(".estMapBtn")[4];
-      if (button) {
-        button.setAttribute("aria-pressed", String(this._gridOn));
+      const def = state.def;
+      state.on = !!on;
+      state.group.clearLayers();
+      if (state.on) {
+        try {
+          state.data = state.data || await fetch(def.url).then((response) => {
+            if (!response.ok) {
+              throw new Error(response.status);
+            }
+            return response.json();
+          });
+          state.failed = false;
+        } catch (e) {
+          state.failed = true;
+          state.on = false;
+        }
       }
-      this._gridLayer.clearLayers();
-      if (!this._gridOn) {
-        return this;
-      }
-      try {
-        this._gridData = this._gridData || await fetch(GRID_URL).then((response) => {
-          if (!response.ok) {
-            throw new Error(response.status);
+      if (state.on && this._map) {
+        const layer = L.geoJSON(state.data, { style: def.style, onEachFeature: (feature, polygon) => {
+          if (def.tooltip) {
+            polygon.bindTooltip(def.tooltip(feature.properties), { sticky: true, className: "estTip", direction: "top" });
           }
-          return response.json();
-        });
-        this._gridFailed = false;
-      } catch (e) {
-        this._gridFailed = true;
-        this._gridOn = false;
-        return this;
+        } });
+        state.group.addLayer(layer);
+        // a layer with its own place (the EC tile) is flown to when it is not in view
+        if (def.ramp && !this._map.getBounds().intersects(layer.getBounds())) {
+          this._map.flyToBounds(layer.getBounds(), { duration: 1, maxZoom: 12 });
+        }
       }
-      if (this._map && this._gridOn) {
-        this._gridLayer.addLayer(L.geoJSON(this._gridData, { style: GRID_STYLE }));
+      const button = this.getDomRef() && this.getDomRef().querySelectorAll(".estMapBtn")[4];
+      if (button) {
+        button.setAttribute("aria-pressed", String(Object.values(this._palm).some((l) => l.on)));
       }
       return this;
     },
