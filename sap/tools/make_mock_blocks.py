@@ -16,6 +16,7 @@ no crews exist for a mock estate.
 """
 import argparse
 import csv
+import json
 import math
 import random
 from pathlib import Path
@@ -48,7 +49,6 @@ def main():
     ap.add_argument("--rows", type=int, default=16)
     a = ap.parse_args()
     rng = random.Random(a.seed)
-    m_lon = 111_320.0 * math.cos(math.radians(a.lat))
 
     # seed points: a brick (odd rows shifted half a cell), each moved by up to a fifth of the spacing
     dx, dy = 280.0, 150.0
@@ -81,15 +81,26 @@ def main():
         if piece.area / 1e4 >= 0.8:
             blocks.append(piece)
 
-    # three divisions, north to south; blocks numbered west to east along each strip of rows
+    rows, features, counters = describe(blocks, a.lon, a.lat, rng, dy)
+    write_outputs(a.code, rows, features)
+    summary(a.code, rows, counters)
+
+
+def describe(blocks, lon0, lat0, rng, dy):
+    """Rows for the BLOCKS import (and GeoJSON features) from block polygons in local metres east and
+    north of (lon0, lat0): three divisions north to south, numbered west to east along each strip
+    of rows (dy metres tall), with made-up area, palms, age, bunches and road condition."""
+    m_lon = 111_320.0 * math.cos(math.radians(lat0))
     ys = sorted(b.centroid.y for b in blocks)
     cuts = [ys[len(ys) // 3], ys[2 * len(ys) // 3]]
+
     def division(b):
         return 1 if b.centroid.y >= cuts[1] else 2 if b.centroid.y >= cuts[0] else 3
-    blocks.sort(key=lambda b: (division(b), -round(b.centroid.y / dy), b.centroid.x))
+
+    blocks = sorted(blocks, key=lambda b: (division(b), -round(b.centroid.y / dy), b.centroid.x))
 
     def lonlat(x, y):
-        return a.lon + x / m_lon, a.lat + y / M_LAT
+        return lon0 + x / m_lon, lat0 + y / M_LAT
 
     rows, features, counters = [], [], {}
     for b in blocks:
@@ -115,16 +126,21 @@ def main():
             "geometry": ",".join(f"{x:.6f} {y:.6f}" for x, y in ring)})
         features.append({"type": "Feature", "properties": {k: v for k, v in rows[-1].items() if k != "geometry"},
                          "geometry": {"type": "Polygon", "coordinates": [[[round(x, 6), round(y, 6)] for x, y in ring]]}})
+    return rows, features, counters
 
+
+def write_outputs(code, rows, features):
     OUT.mkdir(parents=True, exist_ok=True)
-    with open(OUT / f"{a.code}_blocks.csv", "w", newline="") as f:
+    with open(OUT / f"{code}_blocks.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
         w.writeheader()
         w.writerows(rows)
-    import json
-    (OUT / f"{a.code}_blocks.geojson").write_text(json.dumps({"type": "FeatureCollection", "features": features}))
+    (OUT / f"{code}_blocks.geojson").write_text(json.dumps({"type": "FeatureCollection", "features": features}))
+
+
+def summary(code, rows, counters):
     ha = [r["planted_ha"] for r in rows]
-    print(f"{a.code}: {len(rows)} blocks, {sum(ha):.0f} ha (block {min(ha):.1f} to {max(ha):.1f} ha, median {sorted(ha)[len(ha) // 2]:.1f})"
+    print(f"{code}: {len(rows)} blocks, {sum(ha):.0f} ha (block {min(ha):.1f} to {max(ha):.1f} ha, median {sorted(ha)[len(ha) // 2]:.1f})"
           f", divisions {counters}, planted {min(r['planted_year'] for r in rows)}-{max(r['planted_year'] for r in rows)}")
 
 

@@ -13,6 +13,7 @@ blocks file, one CSV per DataImport Kind (Estates app, DataImport: Kind, estate,
 
     python sap/tools/make_mock_operations.py                       # code MOCK, 45 days up to today
     python sap/tools/make_mock_operations.py --code MCK_1 --end 2026-10-05
+    python sap/tools/make_mock_operations.py --code MSUM --sweep   # the estate is cut in sweeps, as a real one is
 
 Load BLOCKS first, then the rest. Leave the estate's "Data Ends On" blank to plan from today, or
 set it to the END date printed here. Everything is made up: rates follow the sample data (about 100
@@ -58,6 +59,9 @@ def main():
     ap.add_argument("--end", default=date.today().isoformat(), help="last day of data, YYYY-MM-DD")
     ap.add_argument("--days", type=int, default=45)
     ap.add_argument("--seed", type=int, default=20250524)
+    ap.add_argument("--sweep", action="store_true",
+                    help="start the rotation as a sweep along each division (blocks next to each other fall "
+                         "due together) instead of at random per block")
     a = ap.parse_args()
     rng = random.Random(a.seed)
     end = date.fromisoformat(a.end)
@@ -94,6 +98,17 @@ def main():
 
     # harvest ledger: blocks come due ROTATION_DAYS after their last cut; stagger the first cuts
     last = {(b["div"], b["code"]): start - timedelta(days=rng.randint(1, ROTATION_DAYS)) for b in blocks}
+    if a.sweep:
+        # a real rotation moves through the estate: strips of rows (300 m), each walked the other way
+        # from the one before, so the blocks cut on one day are neighbours and fall due together
+        for div, row in by_div.items():
+            south = min(float(b["centroid_lat"]) for b in row)
+            def snake(b):
+                strip = int((float(b["centroid_lat"]) - south) / (300 / 110574))
+                return (strip, float(b["centroid_lon"]) * (1 if strip % 2 == 0 else -1))
+            ranked = sorted(row, key=snake)
+            for rank, b in enumerate(ranked):
+                last[(div, b["code"])] = start - timedelta(days=ROTATION_DAYS - rank * ROTATION_DAYS // len(ranked))
     harvest, n = [], 0
     for d in days:
         if d.weekday() == 6:

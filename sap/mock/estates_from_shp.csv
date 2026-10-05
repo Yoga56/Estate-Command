@@ -1,0 +1,6 @@
+estate,name,latitude,longitude,blocks,ha,src_id
+MSUM,"Mock estate, Riau (Sumatra)",1.85866,100.020682,204,769,1226
+MJMB,"Mock estate, Jambi (Sumatra)",-1.528396,103.786023,201,753,5319
+MKAL,"Mock estate, East Kalimantan",1.108955,116.911799,215,803,1907
+MSLW,"Mock estate, West Sulawesi",-2.204984,119.251985,202,743,6243
+MPAP,"Mock estate, South Papua",-6.619386,140.286075,209,762,9131
