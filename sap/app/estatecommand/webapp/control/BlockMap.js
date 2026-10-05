@@ -28,6 +28,7 @@ sap.ui.define([
     fit: svg("<path d=\"M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5\"/>"),
     layers: svg("<path d=\"M12 3 2 8l10 5 10-5-10-5z\"/><path d=\"m2 16 10 5 10-5\"/><path d=\"m2 12 10 5 10-5\"/>"),
     check: svg("<path d=\"m5 12 5 5 9-10\"/>"),
+    grid: svg("<path d=\"M3 3h18v18H3z\"/><path d=\"M9 3v18M15 3v18M3 9h18M3 15h18\"/>"),
     fire: svg("<path d=\"M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1.2-3.6 2.3-4.6.3 1.6 1.2 2.6 2.2 3C11 9 11.2 6 12 3z\"/>")
   };
   // fire sources: the satellite codes FIRMS uses, by instrument; MODIS pixels are 1 km, VIIRS 375 m
@@ -43,6 +44,10 @@ sap.ui.define([
   const FIRE_KEY = "zestate.command.fireLayer";
   // detections closer than this are one fire on the ground (a VIIRS pixel)
   const MERGE_KM = 0.375;
+  // global oil palm grid (Zenodo 13379129): the 609 cells of 100 x 100 km where oil palm was found
+  const GRID_URL = sap.ui.require.toUrl("zestate/command/data/oilpalm-grid.json");
+  const GRID_STYLE = { color: "#ffb703", weight: 1, opacity: 0.8, dashArray: "4 4", fillColor: "#ffb703", fillOpacity: 0.06,
+    interactive: false };
   const touchOnly = () => !!(window.matchMedia && window.matchMedia("(hover: none)").matches);
   const sourceOf = (fire) => FIRE_SOURCES.find((source) => source.match(fire)) || { key: "other", label: "other" };
   const loadFireOptions = () => {
@@ -229,6 +234,8 @@ sap.ui.define([
       this._map.attributionControl.setPrefix(false);
       this._basemap = null;
       this._setBasemap("satellite");
+      this._gridLayer = L.layerGroup().addTo(this._map);
+      this._gridOn = false;
       this._layer = L.layerGroup().addTo(this._map);
       this._fireLayer = L.layerGroup().addTo(this._map);
       // the live layer is off until asked for: reading it calls NASA FIRMS
@@ -245,6 +252,8 @@ sap.ui.define([
           { icon: ICONS.fit, title: "Fit the estate", press: () => this.fit(true) },
           { icon: ICONS.fire, title: "Live fire hotspots (NASA FIRMS): show, hide, choose the sources",
             press: (button, bar) => this._toggleFireMenu(bar, button) },
+          { icon: ICONS.grid, title: "Global oil palm grid (Zenodo): show or hide",
+            press: (button, bar) => this._toggleGridMenu(bar, button) },
           { icon: ICONS.layers, title: "Choose the basemap", press: (button, bar) => this._toggleMenu(bar, button) }
         ]
       }).addTo(this._map);
@@ -298,6 +307,77 @@ sap.ui.define([
       if (checked) {
         checked.focus();
       }
+    },
+
+    /** The grid menu: the global oil palm grid on or off; the file is read the first time it is shown */
+    _toggleGridMenu: function (bar, button) {
+      if (!bar.menu.hidden && this._menuButton === button) {
+        this._closeMenu();
+        return;
+      }
+      this._closeMenu();
+      const element = L.DomUtil.create("button", "estMapMenuItem estMapMenuItem--check", bar.menu);
+      const note = () => this._gridFailed ? "could not be read" : "609 cells of 100 km, Zenodo 13379129";
+      const paint = () => {
+        element.setAttribute("aria-checked", String(this._gridOn));
+        element.innerHTML = "<span>Oil palm grid<small>" + escape(note()) + "</small></span>" + ICONS.check;
+      };
+      bar.menu.innerHTML = "";
+      bar.menu.setAttribute("role", "menu");
+      bar.menu.setAttribute("aria-label", "Oil palm grid");
+      element.type = "button";
+      element.setAttribute("role", "menuitemcheckbox");
+      paint();
+      L.DomEvent.on(element, "click", async (event) => {
+        L.DomEvent.stop(event);
+        await this.showGrid(!this._gridOn);
+        paint();
+      });
+      bar.menu.hidden = false;
+      button.setAttribute("aria-expanded", "true");
+      this._menuBar = bar;
+      this._menuButton = button;
+      this._onMenuKey = (event) => {
+        if (event.key === "Escape") {
+          this._closeMenu();
+          button.focus();
+        }
+      };
+      document.addEventListener("keydown", this._onMenuKey);
+      element.focus();
+    },
+
+    /** Shows or hides the oil palm grid; resolves once it is drawn (or could not be read) */
+    showGrid: async function (on) {
+      if (!this._map) {
+        return this;
+      }
+      this._gridOn = !!on;
+      const button = this.getDomRef().querySelectorAll(".estMapBtn")[4];
+      if (button) {
+        button.setAttribute("aria-pressed", String(this._gridOn));
+      }
+      this._gridLayer.clearLayers();
+      if (!this._gridOn) {
+        return this;
+      }
+      try {
+        this._gridData = this._gridData || await fetch(GRID_URL).then((response) => {
+          if (!response.ok) {
+            throw new Error(response.status);
+          }
+          return response.json();
+        });
+        this._gridFailed = false;
+      } catch (e) {
+        this._gridFailed = true;
+        this._gridOn = false;
+        return this;
+      }
+      if (this._map && this._gridOn) {
+        this._gridLayer.addLayer(L.geoJSON(this._gridData, { style: GRID_STYLE }));
+      }
+      return this;
     },
 
     /** The fire menu: the live layer on or off, which satellites, and whether nearby detections merge */
