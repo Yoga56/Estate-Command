@@ -1,0 +1,50 @@
+managed implementation in class ZBP_R_EST_ESTATE unique;
+strict ( 2 );
+with draft;
+
+define behavior for ZR_EST_ESTATE alias Estate
+persistent table zest_estate
+draft table zest_estate_d
+lock master total etag LastChangedAt
+authorization master ( global )
+etag master LocalLastChangedAt
+{
+  field ( mandatory : create, readonly : update )
+   Estate;
+
+  field ( readonly )
+   CreatedBy,
+   CreatedAt,
+   LastChangedBy,
+   LastChangedAt,
+   LocalLastChangedAt;
+
+  create;
+  update;
+  delete;
+
+  draft action Activate optimized;
+  draft action Discard;
+  draft action Edit;
+  draft action Resume;
+  draft determine action Prepare;
+
+  mapping for zest_estate
+  {
+    Estate = estate;
+    EstateName = estate_name;
+    Plant = plant;
+    StorageLocation = storage_location;
+    Latitude = latitude;
+    Longitude = longitude;
+    Currency = currency;
+    DefaultProvider = default_provider;
+    IsSample = is_sample;
+    DataEnd = data_end;
+    CreatedBy = created_by;
+    CreatedAt = created_at;
+    LastChangedBy = last_changed_by;
+    LastChangedAt = last_changed_at;
+    LocalLastChangedAt = local_last_changed_at;
+  }
+}

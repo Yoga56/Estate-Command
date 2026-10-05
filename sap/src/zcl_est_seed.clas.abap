@@ -1,0 +1,595 @@
+CLASS zcl_est_seed DEFINITION
+  PUBLIC
+  FINAL
+  CREATE PUBLIC.
+
+  PUBLIC SECTION.
+    "! Run with F9 after activation. Writes
+    "!   - the AI provider rows (ZEST_AI_PROV), keeping keys already maintained;
+    "!   - the assumption register (ZEST_ASSUMP), keeping values the estate already changed;
+    "!   - estate SMPL: a small sample estate of 40 blocks with crews, attendance, a harvest
+    "!     ledger, upkeep rounds and stores records, so every app has something to show before
+    "!     the estate's own extracts are imported. Running again rebuilds SMPL only.
+    "!   - estate FIRE: the same sample estate, centred on the densest cluster of NASA FIRMS
+    "!     hotspots in Sumatra over the last two days, so the fire layer has something to show.
+    "!     Without FIRMS it is placed at a hotspot of 1 October 2026 in Jambi.
+    "! The sample is generated from a fixed sequence: every run writes the same estate, dated
+    "! up to yesterday.
+    "!
+    "! ADT runs it in the client it is logged on to (F9). For another client - client 100, where
+    "! the communication arrangements and the cockpit's keys are - schedule it there as an
+    "! application job (catalog entry ZEST_SEED_JOB, template ZEST_SEED_JOB_T); the messages go to
+    "! the job's application log.
+    INTERFACES if_oo_adt_classrun.
+    INTERFACES if_apj_dt_exec_object.
+    INTERFACES if_apj_rt_exec_object.
+
+    "! @parameter rebuild_sample | also rebuild sample estate SMPL
+    METHODS run
+      IMPORTING rebuild_sample TYPE abap_bool DEFAULT abap_true
+      RETURNING VALUE(result)  TYPE string_table.
+  PROTECTED SECTION.
+  PRIVATE SECTION.
+    CONSTANTS sample TYPE zest_estate-estate VALUE 'SMPL'.
+    CONSTANTS fire_sample TYPE zest_estate-estate VALUE 'FIRE'.
+    "! a sample block is 300 m east-west by 1,000 m north-south (30 ha), the usual Indonesian grid
+    CONSTANTS block_lon_degrees TYPE decfloat34 VALUE '0.0027'.
+    CONSTANTS block_lat_degrees TYPE decfloat34 VALUE '0.009'.
+    "! south-west corner of the sample: over the planted grid south-east of Kantor Tasik Harapan,
+    "! Rokan Hulu, Riau - zoomed in on the satellite layer, the blocks sit on real oil palm
+    CONSTANTS origin_lon TYPE decfloat34 VALUE '100.1880'.
+    CONSTANTS origin_lat TYPE decfloat34 VALUE '1.5850'.
+    CONSTANTS sample_parameter TYPE c LENGTH 8 VALUE 'P_SAMPLE'.
+
+    DATA seed TYPE int8 VALUE 20250524.
+
+    METHODS providers
+      RETURNING VALUE(result) TYPE i.
+    METHODS assumptions
+      RETURNING VALUE(result) TYPE i.
+    "! a sample estate of 2 divisions of 4 x 5 blocks with the south-west corner at WEST_LON / SOUTH_LAT
+    METHODS sample_estate
+      IMPORTING id            TYPE zest_estate-estate DEFAULT sample
+                name          TYPE csequence DEFAULT 'Sample Estate (generated, Riau)'
+                west_lon      TYPE decfloat34 DEFAULT origin_lon
+                south_lat     TYPE decfloat34 DEFAULT origin_lat
+      RETURNING VALUE(result) TYPE string.
+    "! sample estate FIRE on the densest hotspot cluster in Sumatra
+    METHODS fire_sample_estate
+      RETURNING VALUE(result) TYPE string.
+    "! south-west of the Strait of Malacca's midline: Sumatra, not the Malay peninsula
+    CLASS-METHODS in_sumatra
+      IMPORTING lat           TYPE f
+                lon           TYPE f
+      RETURNING VALUE(result) TYPE abap_bool.
+    METHODS sample_stores
+      RETURNING VALUE(result) TYPE i.
+    "! next number of the fixed sequence, from 0 to BELOW - 1
+    METHODS next
+      IMPORTING below         TYPE i
+      RETURNING VALUE(result) TYPE i.
+ENDCLASS.
+
+
+
+CLASS zcl_est_seed IMPLEMENTATION.
+
+  METHOD if_oo_adt_classrun~main.
+    LOOP AT run( ) INTO DATA(message).
+      out->write( message ).
+    ENDLOOP.
+    out->write( `Next: run ZCL_EST_AI_TEST, then preview ZUI_EST_CMD_O4 -> Plan -> Plan Tomorrow (estate SMPL)` ).
+  ENDMETHOD.
+
+
+  METHOD run.
+    APPEND |{ providers( ) } AI provider(s) written to ZEST_AI_PROV| TO result.
+    " a string column cannot be compared in WHERE: read the keys and test them here
+    SELECT provider_id, api_key FROM zest_ai_prov WHERE is_active = @abap_true
+      ORDER BY provider_id INTO TABLE @DATA(keyless).
+    LOOP AT keyless INTO DATA(provider) WHERE api_key IS INITIAL.
+      APPEND |  { provider-provider_id }: no key in the row; it needs arrangement property API_KEY| TO result.
+    ENDLOOP.
+    SELECT SINGLE api_key FROM zest_ai_prov WHERE provider_id = @zcl_est_firms=>key_row INTO @DATA(firms_key).
+    IF firms_key IS INITIAL.
+      APPEND |  { zcl_est_firms=>key_row }: no NASA FIRMS map key yet - enter it as the row's API key| TO result.
+    ENDIF.
+    APPEND |{ assumptions( ) } assumption(s) added to ZEST_ASSUMP| TO result.
+    IF rebuild_sample = abap_true.
+      APPEND sample_estate( ) TO result.
+      APPEND |{ sample_stores( ) } sample stores record(s) written to ZEST_MM_MOCK| TO result.
+      " after SMPL and its stores, so their generated figures stay as they were
+      APPEND fire_sample_estate( ) TO result.
+    ENDIF.
+  ENDMETHOD.
+
+
+  METHOD if_apj_dt_exec_object~get_parameters.
+    et_parameter_def = VALUE #(
+      ( selname        = sample_parameter
+        kind           = if_apj_dt_exec_object=>parameter
+        datatype       = 'C'
+        length         = 1
+        param_text     = 'Rebuild sample estates SMPL and FIRE'
+        checkbox_ind   = abap_true
+        changeable_ind = abap_true ) ).
+    et_parameter_val = VALUE #( ( selname = sample_parameter kind = if_apj_dt_exec_object=>parameter
+                                  sign = 'I' option = 'EQ' low = abap_true ) ).
+  ENDMETHOD.
+
+
+  METHOD if_apj_rt_exec_object~execute.
+    DATA(rebuild) = xsdbool( VALUE #( it_parameters[ selname = sample_parameter ]-low OPTIONAL ) = abap_true ).
+    DATA(messages) = run( rebuild ).
+    COMMIT WORK.
+
+    " what the seed did, in the job's application log
+    TRY.
+        DATA(log) = cl_bali_log=>create( ).
+        LOOP AT messages INTO DATA(message).
+          log->add_item( cl_bali_free_text_setter=>create( severity = if_bali_constants=>c_severity_status
+                                                           text     = CONV #( message ) ) ).
+        ENDLOOP.
+        cl_bali_log_db=>get_instance( )->save_log( log = log assign_to_current_appl_job = abap_true ).
+      CATCH cx_bali_runtime.
+        RETURN.
+    ENDTRY.
+  ENDMETHOD.
+
+
+  METHOD next.
+    seed = ( seed * 1103515245 + 12345 ) MOD 2147483648.
+    " the low bits of this generator repeat on a short cycle: take the high ones
+    result = ( seed DIV 65536 ) MOD below.
+  ENDMETHOD.
+
+
+  METHOD providers.
+    DATA rows TYPE STANDARD TABLE OF zest_ai_prov WITH EMPTY KEY.
+    GET TIME STAMP FIELD DATA(now).
+
+    " The communication scenarios already in the system are reused: Gemini through ZCA_CCORE_OUT,
+    " Bedrock through ZFSCM_AI_BEDROCK, BytePlus ModelArk through ZCA_BYTEPLUS_OUT.
+    rows = VALUE #(
+      created_by = sy-uname created_at = now last_changed_by = sy-uname last_changed_at = now
+      local_last_changed_at = now is_active = abap_true max_tokens = 2000 temperature = '0.20'
+      ( provider_id      = 'GEMINI_38F'
+        priority         = 10
+        provider_type    = zcl_est_ai_factory=>provider_type-gemini
+        description      = 'Google Gemini 3.8 Flash'
+        model_id         = 'gemini-3.8-flash'
+        comm_scenario    = 'ZCA_CCORE_OUT'
+        outbound_service = 'ZCA_CCORE_REST'
+        api_path         = '/v1beta/interactions'
+        api_revision     = '2026-05-20'
+        is_default       = abap_true )
+      ( provider_id      = 'GEMINI_35F'
+        priority         = 20
+        provider_type    = zcl_est_ai_factory=>provider_type-gemini
+        description      = 'Google Gemini 3.5 Flash'
+        model_id         = 'gemini-3.5-flash'
+        comm_scenario    = 'ZCA_CCORE_OUT'
+        outbound_service = 'ZCA_CCORE_REST'
+        api_path         = '/v1beta/interactions'
+        api_revision     = '2026-05-20' )
+      ( provider_id      = 'NOVA_2_LITE'
+        priority         = 30
+        provider_type    = zcl_est_ai_factory=>provider_type-bedrock
+        description      = 'AWS Bedrock Nova 2 Lite'
+        model_id         = 'us.amazon.nova-2-lite-v1:0'
+        comm_scenario    = 'ZFSCM_AI_BEDROCK'
+        outbound_service = 'ZFSCM_AI_BEDROCK_REST'
+        api_path         = '/model/{model}/converse'
+        aws_region       = 'us-east-1' )
+      ( provider_id      = 'NOVA_PRO'
+        priority         = 40
+        provider_type    = zcl_est_ai_factory=>provider_type-bedrock
+        description      = 'AWS Bedrock Nova Pro (reasoning)'
+        model_id         = 'us.amazon.nova-pro-v1:0'
+        comm_scenario    = 'ZFSCM_AI_BEDROCK'
+        outbound_service = 'ZFSCM_AI_BEDROCK_REST'
+        api_path         = '/model/{model}/converse'
+        aws_region       = 'us-east-1' )
+      ( provider_id      = 'BYTEPLUS_SEED'
+        priority         = 50
+        provider_type    = zcl_est_ai_factory=>provider_type-byteplus
+        description      = 'BytePlus ModelArk Seed'
+        model_id         = 'seed-1-6-250615'
+        comm_scenario    = 'ZCA_BYTEPLUS_OUT'
+        outbound_service = 'ZCA_BYTEPLUS_REST'
+        api_path         = '/api/v3/chat/completions' )
+      " not an AI provider: holds the NASA FIRMS map key, so it stays inactive
+      ( provider_id      = zcl_est_firms=>key_row
+        priority         = 90
+        provider_type    = 'FIRMS'
+        description      = 'NASA FIRMS fire hotspots - map key only, not an AI provider'
+        comm_scenario    = zcl_est_firms=>comm_scenario
+        outbound_service = zcl_est_firms=>outbound_service
+        api_path         = '/api/area/csv' ) ).
+    rows[ provider_id = zcl_est_firms=>key_row ]-is_active = abap_false.
+
+    " rows from an earlier seed on scenarios this package no longer ships
+    DELETE FROM zest_ai_prov WHERE comm_scenario = 'ZEST_AI_BEDROCK' OR comm_scenario = 'ZEST_AI_GEMINI'.
+
+    " re-running must not wipe keys maintained since; a new row takes a key of its scenario
+    SELECT provider_id, comm_scenario, api_key FROM zest_ai_prov INTO TABLE @DATA(existing_keys).
+    LOOP AT rows ASSIGNING FIELD-SYMBOL(<row>).
+      <row>-api_key = VALUE #( existing_keys[ provider_id = <row>-provider_id ]-api_key OPTIONAL ).
+      IF <row>-api_key IS INITIAL.
+        LOOP AT existing_keys INTO DATA(existing) WHERE comm_scenario = <row>-comm_scenario AND api_key IS NOT INITIAL.
+          <row>-api_key = existing-api_key.
+          EXIT.
+        ENDLOOP.
+      ENDIF.
+    ENDLOOP.
+
+    " The CFO cockpit keeps its keys in its own provider table, not on the arrangements: a row still
+    " without a key takes the cockpit's key for the same scenario. Read dynamically, so this package
+    " does not depend on ZDEMO_FSCM_AI; without that table nothing is copied.
+    TYPES:
+      BEGIN OF ty_foreign_key,
+        comm_scenario TYPE zest_ai_prov-comm_scenario,
+        api_key       TYPE string,
+      END OF ty_foreign_key.
+    DATA foreign_keys TYPE STANDARD TABLE OF ty_foreign_key WITH EMPTY KEY.
+    DATA(cockpit_table) = `ZFSCM_AI_PROV`.
+    TRY.
+        SELECT comm_scenario, api_key FROM (cockpit_table)
+          WHERE api_key IS NOT NULL
+          INTO CORRESPONDING FIELDS OF TABLE @foreign_keys.
+      CATCH cx_root.
+        CLEAR foreign_keys.
+    ENDTRY.
+    DELETE foreign_keys WHERE api_key IS INITIAL.
+    LOOP AT rows ASSIGNING <row> WHERE api_key IS INITIAL.
+      <row>-api_key = VALUE #( foreign_keys[ comm_scenario = <row>-comm_scenario ]-api_key OPTIONAL ).
+    ENDLOOP.
+
+    MODIFY zest_ai_prov FROM TABLE @rows.
+    result = sy-dbcnt.
+  ENDMETHOD.
+
+
+  METHOD assumptions.
+    GET TIME STAMP FIELD DATA(now).
+    SELECT assumption_key FROM zest_assump INTO TABLE @DATA(existing).
+
+    DATA(rows) = zcl_est_assumptions=>defaults( ).
+    " a value the estate changed stays; only new keys are added
+    LOOP AT existing INTO DATA(kept).
+      DELETE rows WHERE assumption_key = kept-assumption_key.
+    ENDLOOP.
+    LOOP AT rows ASSIGNING FIELD-SYMBOL(<row>).
+      <row>-created_by            = sy-uname.
+      <row>-created_at            = now.
+      <row>-last_changed_by       = sy-uname.
+      <row>-last_changed_at       = now.
+      <row>-local_last_changed_at = now.
+    ENDLOOP.
+    IF rows IS NOT INITIAL.
+      INSERT zest_assump FROM TABLE @rows.
+    ENDIF.
+    result = lines( rows ).
+    zcl_est_assumptions=>clear_cache( ).
+  ENDMETHOD.
+
+
+  METHOD sample_estate.
+    DATA blocks TYPE STANDARD TABLE OF zest_block WITH EMPTY KEY.
+    DATA crews TYPE STANDARD TABLE OF zest_crew WITH EMPTY KEY.
+    DATA attendance TYPE STANDARD TABLE OF zest_attend WITH EMPTY KEY.
+    DATA orders TYPE STANDARD TABLE OF zest_workord WITH EMPTY KEY.
+    DATA upkeep TYPE STANDARD TABLE OF zest_upkeep WITH EMPTY KEY.
+
+    DATA(today) = cl_abap_context_info=>get_system_date( ).
+    DATA(data_end) = CONV d( today - 1 ).
+    GET TIME STAMP FIELD DATA(now).
+
+    DELETE FROM zest_block WHERE estate = @id.
+    DELETE FROM zest_crew WHERE estate = @id.
+    DELETE FROM zest_attend WHERE estate = @id.
+    DELETE FROM zest_workord WHERE estate = @id.
+    DELETE FROM zest_upkeep WHERE estate = @id.
+    DELETE FROM zest_plan_l WHERE plan_uuid IN ( SELECT plan_uuid FROM zest_plan WHERE estate = @id ).
+    DELETE FROM zest_plan WHERE estate = @id.
+
+    MODIFY zest_estate FROM @( VALUE zest_estate( estate                = id
+                                        estate_name           = name
+                                        latitude              = south_lat + 2 * block_lat_degrees
+                                        longitude             = west_lon + 5 * block_lon_degrees
+                                        currency              = 'IDR'
+                                        default_provider      = 'GEMINI_38F'
+                                        is_sample             = abap_true
+                                        data_end              = data_end
+                                        created_by            = sy-uname
+                                        created_at            = now
+                                        last_changed_by       = sy-uname
+                                        last_changed_at       = now
+                                        local_last_changed_at = now ) ).
+
+    " two divisions of 4 x 5 blocks, side by side, so neighbours share edges
+    DATA(roads) = VALUE string_table( ( `good` ) ( `good` ) ( `fair` ) ( `fair` ) ( `poor` ) ).
+    DO 2 TIMES.
+      DATA(division) = sy-index.
+      DO 20 TIMES.
+        DATA(number) = sy-index.
+        DATA(column) = ( number - 1 ) MOD 5.
+        DATA(row) = ( number - 1 ) DIV 5.
+        DATA(west) = west_lon + ( ( division - 1 ) * 5 + column ) * block_lon_degrees.
+        DATA(south) = south_lat + row * block_lat_degrees.
+        DATA(east) = west + block_lon_degrees.
+        DATA(north) = south + block_lat_degrees.
+        DATA(ring) = VALUE zcl_est_geo=>ty_ring( ( lon = CONV f( west ) lat = CONV f( south ) )
+                                                 ( lon = CONV f( east ) lat = CONV f( south ) )
+                                                 ( lon = CONV f( east ) lat = CONV f( north ) )
+                                                 ( lon = CONV f( west ) lat = CONV f( north ) )
+                                                 ( lon = CONV f( west ) lat = CONV f( south ) ) ).
+        " 30 ha gross; roads, drains and the collection platform take a little of it
+        DATA(ha) = CONV decfloat34( 27 + next( 3 ) ).
+        DATA(planted) = 2008 + next( 12 ).
+        APPEND VALUE #(
+          estate          = id
+          block_key       = |{ division }-{ number }|
+          division        = |{ division }|
+          block_code      = |{ number }|
+          block_label     = |{ division }-{ number }|
+          planted_ha      = ha
+          palms           = ha * 136
+          planted_year    = planted
+          abw_kg          = CONV decfloat34( next( 30 ) ) / 10 + 7
+          rotation_days   = 7 + next( 4 )
+          gang_code       = |G{ division }-0{ 1 + column DIV 2 }|
+          road_condition  = roads[ 1 + next( 5 ) ]
+          " about 23 t/ha/yr at 8 kg a bunch, older palms a little more
+          bunches_per_day = round( val = ha * ( 7 + CONV decfloat34( 2020 - planted ) / 10 ) dec = 2 )
+          centroid_lon    = ( west + east ) / 2
+          centroid_lat    = ( south + north ) / 2
+          geometry        = zcl_est_geo=>format_ring( ring ) ) TO blocks.
+      ENDDO.
+
+      APPEND VALUE #( estate = id crew_code = |G{ division }-01| crew_type = 'harvest' crew_name = |Gang { division }-01|
+                      division = |{ division }| establishment = 26 harvesters = 14 home_block = |{ division }-1| ) TO crews.
+      APPEND VALUE #( estate = id crew_code = |G{ division }-02| crew_type = 'harvest' crew_name = |Gang { division }-02|
+                      division = |{ division }| establishment = 24 harvesters = 13 home_block = |{ division }-3| ) TO crews.
+      APPEND VALUE #( estate = id crew_code = |G{ division }-03| crew_type = 'harvest' crew_name = |Gang { division }-03|
+                      division = |{ division }| establishment = 25 harvesters = 14 home_block = |{ division }-5| ) TO crews.
+      APPEND VALUE #( estate = id crew_code = |U{ division }-01| crew_type = 'upkeep' crew_name = |Upkeep { division }-01|
+                      division = |{ division }| establishment = 18 home_block = |{ division }-11| ) TO crews.
+    ENDDO.
+    APPEND VALUE #( estate = id crew_code = 'S-01' crew_type = 'spray' crew_name = 'Spray team 1'
+                    establishment = 10 home_block = '1-16' ) TO crews.
+
+    " 45 days of attendance; Sundays thin
+    LOOP AT crews INTO DATA(crew).
+      DO 45 TIMES.
+        DATA(day) = CONV d( data_end - 45 + sy-index ).
+        DATA(weekday) = ( day - CONV d( '19000101' ) ) MOD 7.   " 0 = Monday
+        DATA(rate) = COND i( WHEN weekday = 6 THEN 55 + next( 15 ) ELSE 80 + next( 16 ) ).
+        APPEND VALUE #( estate = id crew_code = crew-crew_code work_date = day
+                        on_roll = crew-establishment present = crew-establishment * rate / 100 ) TO attendance.
+      ENDDO.
+    ENDLOOP.
+
+    " harvest ledger: every block cut on its round; what is cut falls short when it rains or the road is poor
+    DATA(order_no) = 0.
+    LOOP AT blocks INTO DATA(block).
+      DATA(offset) = next( block-rotation_days ).
+      DO 45 TIMES.
+        day = CONV d( data_end - 45 + sy-index ).
+        CHECK ( sy-index + offset ) MOD block-rotation_days = 0.
+        order_no = order_no + 1.
+        DATA(planned) = round( val = block-bunches_per_day * block-rotation_days dec = 0 ).
+        DATA(share) = COND decfloat34( WHEN block-road_condition = `poor` THEN CONV decfloat34( 65 + next( 25 ) ) / 100
+                                       ELSE CONV decfloat34( 80 + next( 21 ) ) / 100 ).
+        DATA(actual) = round( val = planned * share dec = 0 ).
+        DATA(gang) = block-gang_code.
+        APPEND VALUE #(
+          estate           = id
+          order_id         = |WO-{ day DATE = RAW }-H-{ order_no WIDTH = 4 ALIGN = RIGHT PAD = '0' }|
+          work_date        = day
+          operation        = 'harvest'
+          activity         = 'harvest'
+          division         = block-division
+          block_key        = block-block_key
+          crew_code        = gang
+          headcount_plan   = 6
+          headcount_actual = COND #( WHEN share < '0.8' THEN 5 ELSE 6 )
+          planned_qty      = planned
+          actual_qty       = actual
+          qty_unit         = 'bunches'
+          man_days_plan    = 6
+          man_days_actual  = COND #( WHEN share < '0.8' THEN 5 ELSE 6 )
+          status           = COND #( WHEN share >= '0.97' THEN 'completed' ELSE 'partial' ) ) TO orders.
+      ENDDO.
+
+      " upkeep rounds: spread so a share of blocks falls due in the next days
+      APPEND VALUE #( estate = id block_key = block-block_key activity = 'pruning'
+                      last_done = data_end - 150 - next( 110 ) interval_days = 240 ) TO upkeep.
+      APPEND VALUE #( estate = id block_key = block-block_key activity = 'circle_weeding'
+                      last_done = data_end - 40 - next( 45 ) interval_days = 75 ) TO upkeep.
+      APPEND VALUE #( estate = id block_key = block-block_key activity = 'path_upkeep'
+                      last_done = data_end - 60 - next( 60 ) interval_days = 110 ) TO upkeep.
+      APPEND VALUE #( estate = id block_key = block-block_key activity = 'spraying'
+                      last_done = data_end - 60 - next( 50 ) interval_days = 100 ) TO upkeep.
+    ENDLOOP.
+
+    INSERT zest_block FROM TABLE @blocks.
+    INSERT zest_crew FROM TABLE @crews.
+    INSERT zest_attend FROM TABLE @attendance.
+    INSERT zest_workord FROM TABLE @orders.
+    INSERT zest_upkeep FROM TABLE @upkeep.
+
+    result = |Estate { id }: { lines( blocks ) } blocks, { lines( crews ) } crews, | &&
+                |{ lines( attendance ) } attendance days, { lines( orders ) } work orders, { lines( upkeep ) } upkeep rounds; | &&
+                |data ends { data_end DATE = ISO }, so tomorrow is { today DATE = ISO }|.
+  ENDMETHOD.
+
+
+  METHOD fire_sample_estate.
+    TYPES:
+      BEGIN OF ty_cell,
+        key   TYPE string,
+        count TYPE i,
+        frp   TYPE decfloat34,
+        lat   TYPE decfloat34,
+        lon   TYPE decfloat34,
+      END OF ty_cell.
+    DATA cells TYPE HASHED TABLE OF ty_cell WITH UNIQUE KEY key.
+    DATA best TYPE ty_cell.
+
+    " fallback: a VIIRS NOAA-20 hotspot of 2026-10-01 on the peat of eastern Jambi
+    DATA(lat) = CONV decfloat34( '-0.9870' ).
+    DATA(lon) = CONV decfloat34( '103.3310' ).
+    DATA(found) = `placed at a FIRMS hotspot of 2026-10-01 in Jambi`.
+
+    TRY.
+        DATA(hotspots) = zcl_est_firms=>read_area( west = 95 south = -6 east = 106 north = 6 days = 2 ).
+        DATA(in_island) = 0.
+        LOOP AT hotspots INTO DATA(hotspot).
+          CHECK in_sumatra( lat = CONV f( hotspot-latitude ) lon = CONV f( hotspot-longitude ) ).
+          in_island = in_island + 1.
+          " cells of a tenth of a degree, about 11 km
+          DATA(key) = |{ floor( hotspot-latitude * 10 ) }/{ floor( hotspot-longitude * 10 ) }|.
+          READ TABLE cells ASSIGNING FIELD-SYMBOL(<cell>) WITH TABLE KEY key = key.
+          IF sy-subrc <> 0.
+            INSERT VALUE #( key = key ) INTO TABLE cells ASSIGNING <cell>.
+          ENDIF.
+          <cell>-count = <cell>-count + 1.
+          <cell>-frp   = <cell>-frp + hotspot-frp.
+          <cell>-lat   = <cell>-lat + hotspot-latitude.
+          <cell>-lon   = <cell>-lon + hotspot-longitude.
+        ENDLOOP.
+        LOOP AT cells INTO DATA(cell).
+          IF cell-count > best-count OR ( cell-count = best-count AND cell-frp > best-frp ).
+            best = cell.
+          ENDIF.
+        ENDLOOP.
+        IF best-count > 0.
+          lat = best-lat / best-count.
+          lon = best-lon / best-count.
+          found = |densest cluster: { best-count } hotspot(s) within a tenth of a degree, { round( val = best-frp dec = 1 ) } MW; | &&
+                  |{ in_island } hotspot(s) in Sumatra over the last 2 days|.
+        ELSE.
+          found = |no hotspot in Sumatra over the last 2 days; { found }|.
+        ENDIF.
+      CATCH zcx_est_ai INTO DATA(error).
+        found = |FIRMS not read ({ error->get_text( ) }); { found }|.
+    ENDTRY.
+
+    " the cluster in the middle of the estate: some hotspots fall inside blocks, the rest nearby
+    DATA(today) = cl_abap_context_info=>get_system_date( ).
+    result = sample_estate( id        = fire_sample
+                            name      = |Fire Watch Sample ({ today DATE = ISO }, Sumatra)|
+                            west_lon  = lon - 5 * block_lon_degrees
+                            south_lat = lat - 2 * block_lat_degrees ).
+    result = |{ result }; centred on { lat DECIMALS = 4 }, { lon DECIMALS = 4 } - { found }|.
+  ENDMETHOD.
+
+
+  METHOD in_sumatra.
+    TYPES:
+      BEGIN OF ty_point,
+        lon TYPE f,
+        lat TYPE f,
+      END OF ty_point,
+      ty_points TYPE STANDARD TABLE OF ty_point WITH EMPTY KEY.
+    " midline of the strait, north-west to south-east: Aceh / Penang to Riau / Singapore
+    DATA(midline) = VALUE ty_points(
+      ( lon = '98.8' lat = '5.5' ) ( lon = '100.3' lat = '3.6' ) ( lon = '101.6' lat = '2.3' )
+      ( lon = '102.8' lat = '1.6' ) ( lon = '103.6' lat = '1.15' ) ).
+    DATA(limit) = CONV f( '6.0' ).
+    IF lon >= midline[ lines( midline ) ]-lon.
+      limit = midline[ lines( midline ) ]-lat.
+    ELSEIF lon > midline[ 1 ]-lon.
+      LOOP AT midline INTO DATA(a) FROM 1 TO lines( midline ) - 1.
+        DATA(b) = midline[ sy-tabix + 1 ].
+        IF lon >= a-lon AND lon <= b-lon.
+          limit = a-lat + ( b-lat - a-lat ) * ( lon - a-lon ) / ( b-lon - a-lon ).
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+    result = xsdbool( lat < limit ).
+  ENDMETHOD.
+
+
+  METHOD sample_stores.
+    TYPES:
+      BEGIN OF ty_material,
+        material  TYPE zest_mm_mock-material,
+        name      TYPE zest_mm_mock-material_name,
+        group     TYPE zest_mm_mock-material_group,
+        unit      TYPE zest_mm_mock-qty_unit,
+        supplier  TYPE zest_mm_mock-supplier,
+        vendor    TYPE zest_mm_mock-supplier_name,
+        quoted    TYPE i,
+        "! usual delivery, and how many days it can run over
+        usual     TYPE i,
+        spread    TYPE i,
+        daily_use TYPE i,
+        rop       TYPE i,
+        rounding  TYPE i,
+        price     TYPE i,
+        stock     TYPE i,
+      END OF ty_material.
+    DATA materials TYPE STANDARD TABLE OF ty_material WITH EMPTY KEY.
+    DATA rows TYPE STANDARD TABLE OF zest_mm_mock WITH EMPTY KEY.
+
+    DELETE FROM zest_mm_mock WHERE estate = @sample.
+
+    materials = VALUE #(
+      ( material = 'FE-001' name = 'NPK 12-12-17-2' group = 'FERT' unit = 'KG' supplier = 'V101'
+        vendor = 'PT Pupuk Sample (sea)' quoted = 30 usual = 41 spread = 25 daily_use = 900 rop = 30000
+        rounding = 50 price = 8500 stock = 61000 )
+      ( material = 'AC-001' name = 'Glyphosate 480 SL' group = 'AGCH' unit = 'L' supplier = 'V201'
+        vendor = 'CV Agro Sample (road)' quoted = 14 usual = 16 spread = 10 daily_use = 18 rop = 300
+        rounding = 20 price = 95000 stock = 520 )
+      ( material = 'FU-001' name = 'Diesel B35' group = 'FUEL' unit = 'L' supplier = 'V301'
+        vendor = 'PT Fuel Sample (road)' quoted = 5 usual = 6 spread = 4 daily_use = 650 rop = 4000
+        rounding = 8000 price = 13250 stock = 7600 ) ).
+
+    DATA(row_id) = 0.
+    LOOP AT materials INTO DATA(material).
+      row_id = row_id + 1.
+      APPEND VALUE #( estate = sample row_id = row_id kind = 'M' material = material-material
+                      material_name = material-name material_group = material-group qty_unit = material-unit
+                      supplier = material-supplier supplier_name = material-vendor quoted_days = material-quoted
+                      reorder_point = material-rop safety_stock = material-rop / 3 rounding = material-rounding
+                      price = material-price ) TO rows.
+      row_id = row_id + 1.
+      APPEND VALUE #( estate = sample row_id = row_id kind = 'S' material = material-material
+                      quantity = material-stock qty_unit = material-unit ) TO rows.
+
+      " a year of issues, a little lumpy
+      DATA(day) = -365.
+      WHILE day < 0.
+        row_id = row_id + 1.
+        APPEND VALUE #( estate = sample row_id = row_id kind = 'I' material = material-material
+                        date_offset = day qty_unit = material-unit
+                        quantity = material-daily_use * 7 * ( 70 + next( 61 ) ) / 100 ) TO rows.
+        day = day + 7.
+      ENDWHILE.
+
+      " purchase orders: placed every few weeks, delivered after the usual time plus a delay now and then
+      day = -360.
+      DATA(po) = 0.
+      WHILE day < -5.
+        po = po + 1.
+        row_id = row_id + 1.
+        DATA(lead) = material-usual - 4 + next( 9 ) + COND i( WHEN next( 10 ) = 0 THEN material-spread ELSE 0 ).
+        DATA(received) = day + lead.
+        APPEND VALUE #( estate = sample row_id = row_id
+                        kind = COND #( WHEN received < 0 THEN 'P' ELSE 'O' )
+                        material = material-material supplier = material-supplier supplier_name = material-vendor
+                        document = |45{ row_id WIDTH = 8 ALIGN = RIGHT PAD = '0' }|
+                        date_offset = day date2_offset = received qty_unit = material-unit
+                        quantity = material-daily_use * 35 price = material-price ) TO rows.
+        day = day + 35 + next( 10 ).
+      ENDWHILE.
+    ENDLOOP.
+
+    INSERT zest_mm_mock FROM TABLE @rows.
+    result = lines( rows ).
+  ENDMETHOD.
+
+ENDCLASS.

@@ -1,0 +1,33 @@
+# SAP Business Application Studio, client 80 (development). Destination my402244 is the same
+# BTP destination the CFO cockpit deploys through; ui5-local.yaml runs without BAS.
+specVersion: "3.1"
+metadata:
+  name: zestate.command
+type: application
+builder:
+  componentPreload:
+    excludes:
+      - "zestate/command/thirdparty/**"
+  minification:
+    excludes:
+      - "zestate/command/thirdparty/**"
+server:
+  customMiddleware:
+    - name: fiori-tools-proxy
+      afterMiddleware: compression
+      configuration:
+        ignoreCertErrors: false
+        ui5:
+          path:
+            - /resources
+            - /test-resources
+          url: https://ui5.sap.com
+          version: 1.136.0
+        backend:
+          - path: /sap
+            destination: my402244
+    - name: fiori-tools-appreload
+      afterMiddleware: compression
+      configuration:
+        port: 35729
+        path: webapp

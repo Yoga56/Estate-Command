@@ -1,0 +1,243 @@
+@Metadata.layer: #CORE
+@UI.headerInfo: { typeName: 'Plan for Tomorrow', typeNamePlural: 'Plans for Tomorrow',
+                  title: { type: #STANDARD, value: 'Headline' },
+                  description: { type: #STANDARD, value: 'Operation' } }
+@UI.presentationVariant: [ { sortOrder: [ { by: 'PlanDate', direction: #DESC }, { by: 'CreatedAt', direction: #DESC } ] } ]
+annotate view ZC_EST_PLAN with
+{
+  @UI.facet: [
+    { id: 'HdrStatus',   purpose: #HEADER, type: #DATAPOINT_REFERENCE, targetQualifier: 'Status',         position: 10 },
+    { id: 'HdrValue',    purpose: #HEADER, type: #DATAPOINT_REFERENCE, targetQualifier: 'ValueRecovered', position: 20 },
+    { id: 'HdrGap',      purpose: #HEADER, type: #DATAPOINT_REFERENCE, targetQualifier: 'GapPercent',     position: 30 },
+    { id: 'HdrAudit',    purpose: #HEADER, type: #DATAPOINT_REFERENCE, targetQualifier: 'AuditChecked',   position: 40 },
+    { id: 'Note',      label: 'Plan Note',               type: #FIELDGROUP_REFERENCE, targetQualifier: 'Note',      position: 10 },
+    { id: 'Lines',     label: 'Assignment',              type: #LINEITEM_REFERENCE,   targetElement: '_Lines',      position: 20 },
+    { id: 'Why',       label: 'Why: Objective and Bound', type: #FIELDGROUP_REFERENCE, targetQualifier: 'Why',       position: 30 },
+    { id: 'Weather',   label: 'Weather and Capacity',    type: #FIELDGROUP_REFERENCE, targetQualifier: 'Weather',   position: 40 },
+    { id: 'Decision',  label: 'Decision Log',            type: #FIELDGROUP_REFERENCE, targetQualifier: 'Decision',  position: 50 },
+    { id: 'Artifact',  label: 'Work Document (Draft)',   type: #FIELDGROUP_REFERENCE, targetQualifier: 'Artifact',  position: 60 },
+    { id: 'Run',       label: 'AI Run and Evidence',     type: #FIELDGROUP_REFERENCE, targetQualifier: 'Run',       position: 70 } ]
+  @UI.hidden: true
+  PlanUuid;
+
+  @EndUserText.label: 'Estate'
+  @UI.lineItem: [ { position: 10 },
+                  { type: #FOR_ACTION, dataAction: 'GeneratePlan', label: 'Plan Tomorrow' },
+                  { type: #FOR_ACTION, dataAction: 'Handover',     label: 'Shift Handover' } ]
+  @UI.identification: [ { type: #FOR_ACTION, dataAction: 'Accept',        label: 'Accept',         position: 10 },
+                        { type: #FOR_ACTION, dataAction: 'Reject',        label: 'Reject',         position: 20 },
+                        { type: #FOR_ACTION, dataAction: 'Defer',         label: 'Defer',          position: 30 },
+                        { type: #FOR_ACTION, dataAction: 'Replan',        label: 'Replan',         position: 40 },
+                        { type: #FOR_ACTION, dataAction: 'RefreshWords',  label: 'Refresh AI Words', position: 50 },
+                        { type: #FOR_ACTION, dataAction: 'DraftArtifact', label: 'Draft Work Document', position: 60 },
+                        { type: #FOR_ACTION, dataAction: 'Ask',           label: 'Ask',            position: 70 },
+                        { type: #FOR_ACTION, dataAction: 'Outcomes',      label: 'Did It Work?',   position: 80 } ]
+  @UI.selectionField: [ { position: 10 } ]
+  @UI.fieldGroup: [ { qualifier: 'Weather', position: 5 } ]
+  Estate;
+
+  @EndUserText.label: 'Operation'
+  @UI.lineItem: [ { position: 20 } ]
+  @UI.selectionField: [ { position: 20 } ]
+  Operation;
+
+  @EndUserText.label: 'Plan Date'
+  @UI.lineItem: [ { position: 30 } ]
+  @UI.selectionField: [ { position: 30 } ]
+  PlanDate;
+
+  @EndUserText.label: 'Status'
+  @UI.dataPoint: { qualifier: 'Status', title: 'Status (P proposed, F figures only, A accepted, R rejected, D deferred)', criticality: 'StatusCriticality' }
+  @UI.lineItem: [ { position: 40, criticality: 'StatusCriticality' } ]
+  @UI.selectionField: [ { position: 40 } ]
+  @UI.fieldGroup: [ { qualifier: 'Decision', position: 10, criticality: 'StatusCriticality' } ]
+  Status;
+
+  @UI.hidden: true
+  StatusCriticality;
+
+  @EndUserText.label: 'Headline'
+  @UI.lineItem: [ { position: 50 } ]
+  @UI.fieldGroup: [ { qualifier: 'Note', position: 10 } ]
+  Headline;
+
+  @EndUserText.label: 'Summary'
+  @UI.multiLineText: true
+  @UI.fieldGroup: [ { qualifier: 'Note', position: 20 } ]
+  Summary;
+
+  @EndUserText.label: 'Why'
+  @UI.multiLineText: true
+  @UI.fieldGroup: [ { qualifier: 'Note', position: 30 } ]
+  WhyText;
+
+  @EndUserText.label: 'Crews'
+  @UI.fieldGroup: [ { qualifier: 'Weather', position: 40 } ]
+  Crews;
+
+  @EndUserText.label: 'People Expected'
+  @UI.fieldGroup: [ { qualifier: 'Weather', position: 50 } ]
+  Present;
+
+  @EndUserText.label: 'Man-Days Available'
+  @UI.fieldGroup: [ { qualifier: 'Weather', position: 60 } ]
+  CapacityMd;
+
+  @EndUserText.label: 'Blocks Due'
+  @UI.lineItem: [ { position: 60 } ]
+  @UI.fieldGroup: [ { qualifier: 'Why', position: 10 } ]
+  BlocksDue;
+
+  @EndUserText.label: 'Man-Days Needed'
+  @UI.fieldGroup: [ { qualifier: 'Weather', position: 70 } ]
+  ManDaysDue;
+
+  @EndUserText.label: 'Blocks Assigned'
+  @UI.lineItem: [ { position: 70 } ]
+  @UI.fieldGroup: [ { qualifier: 'Why', position: 20 } ]
+  BlocksAssigned;
+
+  @EndUserText.label: 'Man-Days Assigned'
+  @UI.fieldGroup: [ { qualifier: 'Why', position: 30 } ]
+  ManDaysAssigned;
+
+  @EndUserText.label: 'Deferral Value Due (IDR)'
+  @UI.fieldGroup: [ { qualifier: 'Why', position: 40 } ]
+  DeferralDue;
+
+  @EndUserText.label: 'Value Recovered (IDR)'
+  @UI.dataPoint: { qualifier: 'ValueRecovered', title: 'Deferral Value Recovered (IDR)' }
+  @UI.lineItem: [ { position: 80 } ]
+  @UI.fieldGroup: [ { qualifier: 'Why', position: 50 } ]
+  ValueRecovered;
+
+  @EndUserText.label: 'Relaxed Upper Bound (IDR)'
+  @UI.fieldGroup: [ { qualifier: 'Why', position: 60 } ]
+  UpperBound;
+
+  @EndUserText.label: 'Gap to Bound %'
+  @UI.dataPoint: { qualifier: 'GapPercent', title: 'Gap to Upper Bound %' }
+  @UI.fieldGroup: [ { qualifier: 'Why', position: 70 } ]
+  GapPercent;
+
+  @EndUserText.label: 'Contiguity Bonus %'
+  @UI.fieldGroup: [ { qualifier: 'Why', position: 80 } ]
+  ContiguityPercent;
+
+  @EndUserText.label: 'What Contiguity Cost (IDR)'
+  @UI.fieldGroup: [ { qualifier: 'Why', position: 90 } ]
+  ContiguityCost;
+
+  @EndUserText.label: 'Swap Improvements'
+  @UI.fieldGroup: [ { qualifier: 'Why', position: 100 } ]
+  Swaps;
+
+  @EndUserText.label: 'Rain on the Day (mm)'
+  @UI.fieldGroup: [ { qualifier: 'Weather', position: 10 } ]
+  RainMm;
+
+  @EndUserText.label: 'Chance of Rain %'
+  @UI.fieldGroup: [ { qualifier: 'Weather', position: 20 } ]
+  RainProbability;
+
+  @EndUserText.label: 'Rain Source'
+  @UI.fieldGroup: [ { qualifier: 'Weather', position: 30 } ]
+  WeatherSource;
+
+  @EndUserText.label: 'Fire Hotspots (NASA FIRMS)'
+  @UI.fieldGroup: [ { qualifier: 'Weather', position: 34 } ]
+  FireText;
+
+  @EndUserText.label: 'Blocks Held for Fire'
+  @UI.fieldGroup: [ { qualifier: 'Weather', position: 36 } ]
+  FireHeld;
+
+  @EndUserText.label: 'Work Stops'
+  @UI.fieldGroup: [ { qualifier: 'Weather', position: 32 } ]
+  StopsWork;
+
+  @EndUserText.label: 'Why Work Stops'
+  @UI.fieldGroup: [ { qualifier: 'Weather', position: 34 } ]
+  StopReason;
+
+  @EndUserText.label: 'Changes Set on the Plan'
+  @UI.fieldGroup: [ { qualifier: 'Weather', position: 80 } ]
+  Overrides;
+
+  @EndUserText.label: 'Figures Checked'
+  @UI.dataPoint: { qualifier: 'AuditChecked', title: 'Figures Checked', criticality: 'AuditCriticality' }
+  @UI.fieldGroup: [ { qualifier: 'Run', position: 10 } ]
+  AuditChecked;
+
+  @EndUserText.label: 'Figures Not Found in the Data'
+  @UI.fieldGroup: [ { qualifier: 'Run', position: 20, criticality: 'AuditCriticality' } ]
+  AuditUnverified;
+
+  @UI.hidden: true
+  AuditCriticality;
+
+  @EndUserText.label: 'AI Provider'
+  @UI.fieldGroup: [ { qualifier: 'Run', position: 30 } ]
+  ProviderId;
+
+  @EndUserText.label: 'Model'
+  @UI.lineItem: [ { position: 90 } ]
+  @UI.fieldGroup: [ { qualifier: 'Run', position: 40 } ]
+  ModelId;
+
+  @EndUserText.label: 'Input Tokens'
+  @UI.fieldGroup: [ { qualifier: 'Run', position: 50 } ]
+  InputTokens;
+
+  @EndUserText.label: 'Output Tokens'
+  @UI.fieldGroup: [ { qualifier: 'Run', position: 60 } ]
+  OutputTokens;
+
+  @EndUserText.label: 'Error'
+  @UI.fieldGroup: [ { qualifier: 'Run', position: 70 } ]
+  ErrorText;
+
+  @EndUserText.label: 'Evidence Handed to the Model'
+  @UI.multiLineText: true
+  @UI.fieldGroup: [ { qualifier: 'Run', position: 80 } ]
+  Prompt;
+
+  @EndUserText.label: 'Model Response'
+  @UI.multiLineText: true
+  @UI.fieldGroup: [ { qualifier: 'Run', position: 90 } ]
+  RawResponse;
+
+  @EndUserText.label: 'Decided By'
+  @UI.fieldGroup: [ { qualifier: 'Decision', position: 20 } ]
+  DecidedBy;
+
+  @EndUserText.label: 'Decided At'
+  @UI.fieldGroup: [ { qualifier: 'Decision', position: 30 } ]
+  DecidedAt;
+
+  @EndUserText.label: 'Note'
+  @UI.fieldGroup: [ { qualifier: 'Decision', position: 40 } ]
+  DecisionNote;
+
+  @EndUserText.label: 'Look Again On'
+  @UI.fieldGroup: [ { qualifier: 'Decision', position: 50 } ]
+  DueDate;
+
+  @EndUserText.label: 'Expected Effect'
+  @UI.fieldGroup: [ { qualifier: 'Decision', position: 60 } ]
+  ExpectedEffect;
+
+  @EndUserText.label: 'Observed Effect'
+  @UI.fieldGroup: [ { qualifier: 'Decision', position: 70 } ]
+  ObservedEffect;
+
+  @EndUserText.label: 'Work Document'
+  @UI.multiLineText: true
+  @UI.fieldGroup: [ { qualifier: 'Artifact', position: 10 } ]
+  ArtifactText;
+
+  @EndUserText.label: 'Created On'
+  @UI.lineItem: [ { position: 100 } ]
+  @UI.fieldGroup: [ { qualifier: 'Run', position: 100 } ]
+  CreatedAt;
+}

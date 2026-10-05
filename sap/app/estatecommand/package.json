@@ -1,0 +1,18 @@
+{
+  "name": "estatecommand",
+  "version": "0.1.0",
+  "description": "Estate Command on SAP: tomorrow's crew assignment on the estate map",
+  "private": true,
+  "scripts": {
+    "start": "ui5 serve --config ./ui5.yaml --open index.html",
+    "build": "ui5 build --config ./ui5.yaml --clean-dest --dest dist",
+    "deploy": "npm run build && fiori deploy --config ./ui5-deploy.yaml",
+    "start-100": "ui5 serve --config ./ui5-100.yaml --open index.html",
+    "start-local": "ui5 serve --config ./ui5-local.yaml --open index.html",
+    "deploy-local": "npm run build && fiori deploy --config ./ui5-deploy-local.yaml"
+  },
+  "devDependencies": {
+    "@sap/ux-ui5-tooling": "1",
+    "@ui5/cli": "^4"
+  }
+}

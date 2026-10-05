@@ -1,0 +1,137 @@
+@Metadata.layer: #CORE
+@UI.headerInfo: { typeName: 'Material', typeNamePlural: 'What to Order',
+                  title: { type: #STANDARD, value: 'MaterialName' },
+                  description: { type: #STANDARD, value: 'Headline' } }
+annotate entity ZI_EST_STORES with
+{
+  @UI.facet: [
+    { id: 'HdrRop',  purpose: #HEADER, type: #DATAPOINT_REFERENCE, targetQualifier: 'ReorderPoint', position: 10 },
+    { id: 'HdrBy',   purpose: #HEADER, type: #DATAPOINT_REFERENCE, targetQualifier: 'OrderByDate',  position: 20 },
+    { id: 'Answer',  label: 'What to Order',     type: #FIELDGROUP_REFERENCE, targetQualifier: 'Answer',  position: 10 },
+    { id: 'Lead',    label: 'Supplier Lead Time', type: #FIELDGROUP_REFERENCE, targetQualifier: 'Lead',    position: 20 },
+    { id: 'Buffer',  label: 'Reorder Point and Buffer', type: #FIELDGROUP_REFERENCE, targetQualifier: 'Buffer', position: 30 } ]
+  @EndUserText.label: 'Estate'
+  @UI.selectionField: [ { position: 10 } ]
+  @UI.lineItem: [ { position: 5 } ]
+  Estate;
+
+  @EndUserText.label: 'Material'
+  @UI.lineItem: [ { position: 10 } ]
+  Material;
+
+  @EndUserText.label: 'Description'
+  @UI.lineItem: [ { position: 20 } ]
+  MaterialName;
+
+  @EndUserText.label: 'Group'
+  @UI.lineItem: [ { position: 25 } ]
+  MaterialGroup;
+
+  @EndUserText.label: 'Unit'
+  QtyUnit;
+
+  @EndUserText.label: 'Answer'
+  @UI.lineItem: [ { position: 30, criticality: 'StatusCriticality' } ]
+  @UI.fieldGroup: [ { qualifier: 'Answer', position: 10, criticality: 'StatusCriticality' } ]
+  Headline;
+
+  @EndUserText.label: 'Status'
+  @UI.lineItem: [ { position: 40, criticality: 'StatusCriticality' } ]
+  @UI.fieldGroup: [ { qualifier: 'Answer', position: 20 } ]
+  StockStatus;
+
+  @UI.hidden: true
+  StatusCriticality;
+
+  @EndUserText.label: 'Order By'
+  @UI.dataPoint: { qualifier: 'OrderByDate', title: 'Order By', criticality: 'StatusCriticality' }
+  @UI.lineItem: [ { position: 50 } ]
+  @UI.fieldGroup: [ { qualifier: 'Answer', position: 30 } ]
+  OrderByDate;
+
+  @EndUserText.label: 'Order Quantity'
+  @UI.lineItem: [ { position: 60 } ]
+  @UI.fieldGroup: [ { qualifier: 'Answer', position: 40 } ]
+  OrderQty;
+
+  @EndUserText.label: 'On Hand'
+  @UI.lineItem: [ { position: 70 } ]
+  @UI.fieldGroup: [ { qualifier: 'Answer', position: 50 } ]
+  StockOnHand;
+
+  @EndUserText.label: 'On Order'
+  @UI.fieldGroup: [ { qualifier: 'Answer', position: 60 } ]
+  OnOrder;
+
+  @EndUserText.label: 'Use per Day'
+  @UI.lineItem: [ { position: 80 } ]
+  @UI.fieldGroup: [ { qualifier: 'Answer', position: 70 } ]
+  DailyUse;
+
+  @EndUserText.label: 'Sample Data'
+  @UI.fieldGroup: [ { qualifier: 'Answer', position: 80 } ]
+  IsSample;
+
+  @EndUserText.label: 'Supplier'
+  @UI.fieldGroup: [ { qualifier: 'Lead', position: 10 } ]
+  Supplier;
+
+  @EndUserText.label: 'Supplier Name'
+  @UI.lineItem: [ { position: 90 } ]
+  @UI.fieldGroup: [ { qualifier: 'Lead', position: 20 } ]
+  SupplierName;
+
+  @EndUserText.label: 'Lead Time'
+  @UI.fieldGroup: [ { qualifier: 'Lead', position: 30 } ]
+  LeadSentence;
+
+  @EndUserText.label: 'Quoted Days (SAP)'
+  @UI.fieldGroup: [ { qualifier: 'Lead', position: 40 } ]
+  QuotedDays;
+
+  @EndUserText.label: 'Usual Days'
+  @UI.lineItem: [ { position: 100 } ]
+  @UI.fieldGroup: [ { qualifier: 'Lead', position: 50 } ]
+  UsualDays;
+
+  @EndUserText.label: '1 in 10 Takes (Days)'
+  @UI.fieldGroup: [ { qualifier: 'Lead', position: 60 } ]
+  LateDays;
+
+  @EndUserText.label: 'Very Late %'
+  @UI.fieldGroup: [ { qualifier: 'Lead', position: 70 } ]
+  VeryLatePct;
+
+  @EndUserText.label: 'Orders Measured'
+  @UI.fieldGroup: [ { qualifier: 'Lead', position: 80 } ]
+  OrdersMeasured;
+
+  @EndUserText.label: 'Reorder Point in Force'
+  @UI.dataPoint: { qualifier: 'ReorderPoint', title: 'Reorder Point' }
+  @UI.fieldGroup: [ { qualifier: 'Buffer', position: 10 } ]
+  ReorderPoint;
+
+  @EndUserText.label: 'From'
+  @UI.fieldGroup: [ { qualifier: 'Buffer', position: 20 } ]
+  PolicySource;
+
+  @EndUserText.label: 'SAP Reorder Point (MRP)'
+  @UI.fieldGroup: [ { qualifier: 'Buffer', position: 30 } ]
+  SapReorderPoint;
+
+  @EndUserText.label: 'Why the Buffer'
+  @UI.fieldGroup: [ { qualifier: 'Buffer', position: 40 } ]
+  BufferSentence;
+
+  @EndUserText.label: 'Safety Stock'
+  @UI.fieldGroup: [ { qualifier: 'Buffer', position: 50 } ]
+  SafetyStock;
+
+  @EndUserText.label: 'Because Deliveries Vary'
+  @UI.fieldGroup: [ { qualifier: 'Buffer', position: 60 } ]
+  BufferForDelivery;
+
+  @EndUserText.label: 'Because Use Varies'
+  @UI.fieldGroup: [ { qualifier: 'Buffer', position: 70 } ]
+  BufferForUse;
+}

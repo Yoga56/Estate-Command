@@ -1,0 +1,231 @@
+managed implementation in class ZBP_R_EST_PLAN unique;
+strict ( 2 );
+
+define behavior for ZR_EST_PLAN alias Plan
+persistent table zest_plan
+lock master
+authorization master ( global )
+etag master LocalLastChangedAt
+{
+  // plans are created by GeneratePlan and changed by their actions only
+  field ( readonly )
+   PlanUuid,
+   Estate,
+   Operation,
+   PlanDate,
+   Status,
+   StatusCriticality,
+   Crews,
+   Present,
+   CapacityMd,
+   BlocksDue,
+   ManDaysDue,
+   BlocksAssigned,
+   ManDaysAssigned,
+   DeferralDue,
+   ValueRecovered,
+   UpperBound,
+   GapPercent,
+   ContiguityCost,
+   ContiguityPercent,
+   Swaps,
+   RainMm,
+   RainProbability,
+   WeatherSource,
+   FireText,
+   FireHeld,
+   StopsWork,
+   StopReason,
+   Overrides,
+   Headline,
+   Summary,
+   WhyText,
+   AuditChecked,
+   AuditUnverified,
+   AuditCriticality,
+   ProviderId,
+   ModelId,
+   InputTokens,
+   OutputTokens,
+   ErrorText,
+   Prompt,
+   RawResponse,
+   DecidedBy,
+   DecidedAt,
+   DecisionNote,
+   DueDate,
+   ExpectedEffect,
+   ObservedEffect,
+   ArtifactText,
+   CreatedBy,
+   CreatedAt,
+   LastChangedBy,
+   LastChangedAt,
+   LocalLastChangedAt;
+
+  field ( numbering : managed )
+   PlanUuid;
+
+  internal create;
+  internal update;
+  delete;
+
+  // plan one operation of one estate for a day, and let the model word it
+  static action GeneratePlan parameter ZA_EST_GEN_PLAN result [1] $self;
+  // read-only: the shift handover note over the plans of the last seven days
+  static action Handover parameter ZA_EST_ESTATE_P result [1] ZA_EST_HANDOVER;
+  // the same day planned again with a changed constraint: a crew out, a headcount, rain, a block held
+  action ( features : instance ) Replan parameter ZA_EST_REPLAN result [1] $self;
+  // new words from the model on the stored figures; nothing is recomputed
+  action RefreshWords parameter ZA_EST_PROVIDER result [1] $self;
+  // the decision log: who decided what, when, and what they expect it to do
+  action ( features : instance ) Accept parameter ZA_EST_DECISION result [1] $self;
+  action ( features : instance ) Reject parameter ZA_EST_DECISION result [1] $self;
+  action ( features : instance ) Defer parameter ZA_EST_DECISION result [1] $self;
+  // the assignment as a work document; drafted, never sent or posted
+  action DraftArtifact result [1] $self;
+  // read-only: a question on the plan, answered from its figures and audited
+  action Ask parameter ZA_EST_QUESTION result [1] ZA_EST_ANSWER;
+  // read-only: the plan read back against the ledger once its date has passed
+  action Outcomes result [0..*] ZA_EST_OUTCOME;
+
+  association _Lines { internal create; }
+
+  mapping for zest_plan
+  {
+    PlanUuid = plan_uuid;
+    Estate = estate;
+    Operation = operation;
+    PlanDate = plan_date;
+    Status = status;
+    StatusCriticality = status_criticality;
+    Crews = crews;
+    Present = present;
+    CapacityMd = capacity_md;
+    BlocksDue = blocks_due;
+    ManDaysDue = man_days_due;
+    BlocksAssigned = blocks_assigned;
+    ManDaysAssigned = man_days_assigned;
+    DeferralDue = deferral_due;
+    ValueRecovered = value_recovered;
+    UpperBound = upper_bound;
+    GapPercent = gap_percent;
+    ContiguityCost = contiguity_cost;
+    ContiguityPercent = contiguity_percent;
+    Swaps = swaps;
+    RainMm = rain_mm;
+    RainProbability = rain_probability;
+    WeatherSource = weather_source;
+    FireText = fire_text;
+    FireHeld = fire_held;
+    StopsWork = stops_work;
+    StopReason = stop_reason;
+    Overrides = overrides;
+    Headline = headline;
+    Summary = summary;
+    WhyText = why_text;
+    AuditChecked = audit_checked;
+    AuditUnverified = audit_unverified;
+    AuditCriticality = audit_criticality;
+    ProviderId = provider_id;
+    ModelId = model_id;
+    InputTokens = input_tokens;
+    OutputTokens = output_tokens;
+    ErrorText = error_text;
+    Prompt = prompt;
+    RawResponse = raw_response;
+    DecidedBy = decided_by;
+    DecidedAt = decided_at;
+    DecisionNote = decision_note;
+    DueDate = due_date;
+    ExpectedEffect = expected_effect;
+    ObservedEffect = observed_effect;
+    ArtifactText = artifact_text;
+    CreatedBy = created_by;
+    CreatedAt = created_at;
+    LastChangedBy = last_changed_by;
+    LastChangedAt = last_changed_at;
+    LocalLastChangedAt = local_last_changed_at;
+  }
+}
+
+define behavior for ZR_EST_PLAN_L alias Line
+persistent table zest_plan_l
+lock dependent by _Plan
+authorization dependent by _Plan
+etag master LocalLastChangedAt
+{
+  field ( readonly )
+   LineUuid,
+   PlanUuid,
+   LineNumber,
+   IsAssigned,
+   CrewCode,
+   CrewRange,
+   CrewPresent,
+   SequenceNo,
+   BlockKey,
+   BlockLabel,
+   Division,
+   Activity,
+   Quantity,
+   QtyUnit,
+   ManDays,
+   WorkShare,
+   Urgency,
+   DaysSince,
+   TargetDays,
+   BlockValue,
+   Deferral,
+   Contiguity,
+   TravelKm,
+   TravelCost,
+   Score,
+   IsContiguous,
+   RoadCondition,
+   Criticality,
+   LineNote,
+   LocalLastChangedAt;
+
+  field ( numbering : managed )
+   LineUuid;
+
+  internal update;
+  internal delete;
+
+  association _Plan;
+
+  mapping for zest_plan_l
+  {
+    LineUuid = line_uuid;
+    PlanUuid = plan_uuid;
+    LineNumber = line_no;
+    IsAssigned = is_assigned;
+    CrewCode = crew_code;
+    CrewRange = crew_range;
+    CrewPresent = crew_present;
+    SequenceNo = sequence_no;
+    BlockKey = block_key;
+    BlockLabel = block_label;
+    Division = division;
+    Activity = activity;
+    Quantity = quantity;
+    QtyUnit = qty_unit;
+    ManDays = man_days;
+    WorkShare = work_share;
+    Urgency = urgency;
+    DaysSince = days_since;
+    TargetDays = target_days;
+    BlockValue = block_value;
+    Deferral = deferral;
+    Contiguity = contiguity;
+    TravelKm = travel_km;
+    TravelCost = travel_cost;
+    Score = score;
+    IsContiguous = is_contiguous;
+    RoadCondition = road_condition;
+    Criticality = criticality;
+    LineNote = line_note;
+    LocalLastChangedAt = local_last_changed_at;
+  }
+}

@@ -1,0 +1,76 @@
+@Metadata.layer: #CORE
+@UI.headerInfo: { typeName: 'AI Provider', typeNamePlural: 'AI Providers',
+                  title: { type: #STANDARD, value: 'ProviderId' },
+                  description: { type: #STANDARD, value: 'Description' } }
+@UI.presentationVariant: [ { sortOrder: [ { by: 'Priority' } ] } ]
+annotate view ZC_EST_AI_PROV with
+{
+  @UI.facet: [ { id: 'Provider', label: 'Provider', purpose: #STANDARD, position: 10, type: #IDENTIFICATION_REFERENCE } ]
+  @EndUserText.label: 'Provider'
+  @UI.lineItem: [ { position: 10 } ]
+  @UI.identification: [ { position: 10 } ]
+  ProviderId;
+
+  @EndUserText.label: 'Type (GEMINI, BEDROCK, BYTEPLUS)'
+  @UI.lineItem: [ { position: 20 } ]
+  @UI.identification: [ { position: 20 } ]
+  ProviderType;
+
+  @EndUserText.label: 'Description'
+  @UI.lineItem: [ { position: 30 } ]
+  @UI.identification: [ { position: 30 } ]
+  Description;
+
+  @EndUserText.label: 'Model'
+  @UI.lineItem: [ { position: 40 } ]
+  @UI.identification: [ { position: 40 } ]
+  ModelId;
+
+  @EndUserText.label: 'Active'
+  @UI.lineItem: [ { position: 50 } ]
+  @UI.identification: [ { position: 50 } ]
+  IsActive;
+
+  @EndUserText.label: 'Default'
+  @UI.lineItem: [ { position: 60 } ]
+  @UI.identification: [ { position: 60 } ]
+  IsDefault;
+
+  @EndUserText.label: 'Fallback Order'
+  @UI.lineItem: [ { position: 70 } ]
+  @UI.identification: [ { position: 70 } ]
+  Priority;
+
+  @EndUserText.label: 'Communication Scenario'
+  @UI.identification: [ { position: 80 } ]
+  CommScenario;
+
+  @EndUserText.label: 'Outbound Service'
+  @UI.identification: [ { position: 90 } ]
+  OutboundService;
+
+  @EndUserText.label: 'API Path'
+  @UI.identification: [ { position: 100 } ]
+  ApiPath;
+
+  @EndUserText.label: 'API Revision'
+  @UI.identification: [ { position: 110 } ]
+  ApiRevision;
+
+  @EndUserText.label: 'API Key (blank = arrangement property API_KEY)'
+  @UI.identification: [ { position: 120 } ]
+  ApiKey;
+
+  @EndUserText.label: 'AWS Region'
+  @UI.identification: [ { position: 130 } ]
+  AwsRegion;
+
+  @EndUserText.label: 'Max Tokens'
+  @UI.identification: [ { position: 140 } ]
+  MaxTokens;
+
+  @EndUserText.label: 'Temperature'
+  @UI.identification: [ { position: 150 } ]
+  Temperature;
+
+}

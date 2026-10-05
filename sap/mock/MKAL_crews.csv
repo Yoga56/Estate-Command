@@ -1,0 +1,12 @@
+crew_code,crew_type,name,division_code,establishment,harvesters,home_block
+G1-01,harvest,Harvest gang 1-01,1,26,14,1-33
+G1-02,harvest,Harvest gang 1-02,1,24,13,1-16
+G2-01,harvest,Harvest gang 2-01,2,26,14,2-24
+G2-02,harvest,Harvest gang 2-02,2,24,13,2-17
+G3-01,harvest,Harvest gang 3-01,3,27,15,3-63
+U1-01,upkeep,Upkeep gang 1-01,1,19,,1-33
+U2-01,upkeep,Upkeep gang 2-01,2,18,,2-24
+U3-01,upkeep,Upkeep gang 3-01,3,19,,3-63
+S1-01,spray,Spray gang 1-01,1,15,,1-33
+S2-01,spray,Spray gang 2-01,2,14,,2-24
+S3-01,spray,Spray gang 3-01,3,16,,3-63

@@ -1,0 +1,133 @@
+@Metadata.layer: #CORE
+@UI.headerInfo: { typeName: 'Assignment Line', typeNamePlural: 'Assignment',
+                  title: { type: #STANDARD, value: 'BlockLabel' },
+                  description: { type: #STANDARD, value: 'CrewCode' } }
+@UI.presentationVariant: [ { sortOrder: [ { by: 'LineNumber' } ] } ]
+annotate view ZC_EST_PLAN_L with
+{
+  @UI.facet: [ { id: 'Line', label: 'Line', purpose: #STANDARD, position: 10, type: #IDENTIFICATION_REFERENCE } ]
+  @UI.hidden: true
+  LineUuid;
+
+  @UI.hidden: true
+  PlanUuid;
+
+  @UI.hidden: true
+  Criticality;
+
+  @EndUserText.label: '#'
+  @UI.lineItem: [ { position: 10 } ]
+  LineNumber;
+
+  @EndUserText.label: 'Assigned'
+  @UI.lineItem: [ { position: 15 } ]
+  @UI.identification: [ { position: 15 } ]
+  IsAssigned;
+
+  @EndUserText.label: 'Crew'
+  @UI.lineItem: [ { position: 20 } ]
+  @UI.identification: [ { position: 20 } ]
+  CrewCode;
+
+  @EndUserText.label: 'Crew Blocks'
+  @UI.lineItem: [ { position: 25 } ]
+  @UI.identification: [ { position: 25 } ]
+  CrewRange;
+
+  @EndUserText.label: 'Expected'
+  @UI.identification: [ { position: 27 } ]
+  CrewPresent;
+
+  @EndUserText.label: 'Order'
+  @UI.lineItem: [ { position: 30 } ]
+  SequenceNo;
+
+  @EndUserText.label: 'Block'
+  @UI.lineItem: [ { position: 40, criticality: 'Criticality' } ]
+  @UI.identification: [ { position: 40 } ]
+  BlockLabel;
+
+  @UI.hidden: true
+  BlockKey;
+
+  @EndUserText.label: 'Division'
+  @UI.identification: [ { position: 45 } ]
+  Division;
+
+  @EndUserText.label: 'Activity'
+  @UI.lineItem: [ { position: 50 } ]
+  @UI.identification: [ { position: 50 } ]
+  Activity;
+
+  @EndUserText.label: 'Quantity'
+  @UI.lineItem: [ { position: 60 } ]
+  @UI.identification: [ { position: 60 } ]
+  Quantity;
+
+  @EndUserText.label: 'Unit'
+  @UI.lineItem: [ { position: 65 } ]
+  QtyUnit;
+
+  @EndUserText.label: 'Man-Days'
+  @UI.lineItem: [ { position: 70 } ]
+  @UI.identification: [ { position: 70 } ]
+  ManDays;
+
+  @EndUserText.label: 'Share of Job'
+  @UI.identification: [ { position: 75 } ]
+  WorkShare;
+
+  @EndUserText.label: 'Urgency'
+  @UI.lineItem: [ { position: 80, criticality: 'Criticality' } ]
+  @UI.identification: [ { position: 80 } ]
+  Urgency;
+
+  @EndUserText.label: 'Days Since'
+  @UI.lineItem: [ { position: 85 } ]
+  @UI.identification: [ { position: 85 } ]
+  DaysSince;
+
+  @EndUserText.label: 'Round (Days)'
+  @UI.identification: [ { position: 86 } ]
+  TargetDays;
+
+  @EndUserText.label: 'Deferral (IDR)'
+  @UI.lineItem: [ { position: 90 } ]
+  @UI.identification: [ { position: 90 } ]
+  Deferral;
+
+  @EndUserText.label: 'Block Value (IDR)'
+  @UI.identification: [ { position: 92 } ]
+  BlockValue;
+
+  @EndUserText.label: 'Contiguity (IDR)'
+  @UI.identification: [ { position: 94 } ]
+  Contiguity;
+
+  @EndUserText.label: 'Travel (km)'
+  @UI.lineItem: [ { position: 100 } ]
+  @UI.identification: [ { position: 100 } ]
+  TravelKm;
+
+  @EndUserText.label: 'Travel (IDR)'
+  @UI.identification: [ { position: 102 } ]
+  TravelCost;
+
+  @EndUserText.label: 'Score (IDR)'
+  @UI.identification: [ { position: 104 } ]
+  Score;
+
+  @EndUserText.label: 'Next to Previous Block'
+  @UI.identification: [ { position: 106 } ]
+  IsContiguous;
+
+  @EndUserText.label: 'Road'
+  @UI.lineItem: [ { position: 110 } ]
+  @UI.identification: [ { position: 110 } ]
+  RoadCondition;
+
+  @EndUserText.label: 'Note'
+  @UI.lineItem: [ { position: 120 } ]
+  @UI.identification: [ { position: 120 } ]
+  LineNote;
+}

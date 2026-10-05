@@ -1,0 +1,54 @@
+@Metadata.layer: #CORE
+@UI.headerInfo: { typeName: 'Estate', typeNamePlural: 'Estates',
+                  title: { type: #STANDARD, value: 'Estate' },
+                  description: { type: #STANDARD, value: 'EstateName' } }
+annotate view ZC_EST_ESTATE with
+{
+  @UI.facet: [ { id: 'Estate', label: 'Estate', purpose: #STANDARD, position: 10, type: #IDENTIFICATION_REFERENCE } ]
+  @EndUserText.label: 'Estate'
+  @UI.lineItem: [ { position: 10 } ]
+  @UI.identification: [ { position: 10 } ]
+  @UI.selectionField: [ { position: 10 } ]
+  Estate;
+
+  @EndUserText.label: 'Name'
+  @UI.lineItem: [ { position: 20 } ]
+  @UI.identification: [ { position: 20 } ]
+  EstateName;
+
+  @EndUserText.label: 'Plant (blank = sample stores data)'
+  @UI.lineItem: [ { position: 30 } ]
+  @UI.identification: [ { position: 30 } ]
+  Plant;
+
+  @EndUserText.label: 'Storage Location'
+  @UI.identification: [ { position: 40 } ]
+  StorageLocation;
+
+  @EndUserText.label: 'Latitude (for the rain forecast)'
+  @UI.identification: [ { position: 50 } ]
+  Latitude;
+
+  @EndUserText.label: 'Longitude'
+  @UI.identification: [ { position: 60 } ]
+  Longitude;
+
+  @EndUserText.label: 'Currency'
+  @UI.identification: [ { position: 70 } ]
+  Currency;
+
+  @EndUserText.label: 'Default AI Provider'
+  @UI.lineItem: [ { position: 40 } ]
+  @UI.identification: [ { position: 80 } ]
+  DefaultProvider;
+
+  @EndUserText.label: 'Sample Data'
+  @UI.lineItem: [ { position: 50 } ]
+  @UI.identification: [ { position: 90 } ]
+  IsSample;
+
+  @EndUserText.label: 'Data Ends On (blank = live)'
+  @UI.lineItem: [ { position: 60 } ]
+  @UI.identification: [ { position: 100 } ]
+  DataEnd;
+}

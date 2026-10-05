@@ -1,0 +1,16 @@
+projection;
+strict ( 2 );
+use draft;
+
+define behavior for ZC_EST_ASSUMP alias Assumption
+use etag
+{
+  use update;
+  use action ResetToDefault;
+
+  use action Edit;
+  use action Activate;
+  use action Discard;
+  use action Resume;
+  use action Prepare;
+}

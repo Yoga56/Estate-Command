@@ -1,0 +1,62 @@
+managed implementation in class ZBP_R_EST_IMPORT unique;
+strict ( 2 );
+with draft;
+
+define behavior for ZR_EST_IMPORT alias Import
+persistent table zest_import
+draft table zest_import_d
+with additional save
+lock master total etag LastChangedAt
+authorization master ( global )
+etag master LocalLastChangedAt
+{
+  field ( numbering : managed, readonly )
+   ImportUuid;
+
+  field ( mandatory : create )
+   DataKind,
+   Estate;
+
+  field ( readonly )
+   Status,
+   StatusCriticality,
+   RowsLoaded,
+   Message,
+   CreatedBy,
+   CreatedAt,
+   LastChangedBy,
+   LastChangedAt,
+   LocalLastChangedAt;
+
+  create;
+  update;
+  delete;
+
+  // parses the uploaded CSV and replaces the estate's rows of that kind
+  action Load result [1] $self;
+
+  draft action Activate optimized;
+  draft action Discard;
+  draft action Edit;
+  draft action Resume;
+  draft determine action Prepare;
+
+  mapping for zest_import
+  {
+    ImportUuid = import_uuid;
+    DataKind = data_kind;
+    Estate = estate;
+    FileName = file_name;
+    MimeType = mime_type;
+    Attachment = attachment;
+    Status = status;
+    StatusCriticality = status_criticality;
+    RowsLoaded = rows_loaded;
+    Message = message;
+    CreatedBy = created_by;
+    CreatedAt = created_at;
+    LastChangedBy = last_changed_by;
+    LastChangedAt = last_changed_at;
+    LocalLastChangedAt = local_last_changed_at;
+  }
+}

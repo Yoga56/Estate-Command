@@ -65,3 +65,6 @@ command_static/dist/
 # Estate Command estate snapshots (gis/build_estate_data.py): real block
 # polygons and harvest records out of the EPMS databases.
 gis/data/estates/
+
+# SAP edition: CSV extracts written by sap/tools/export_sap_seed.py (client data)
+sap/seed/

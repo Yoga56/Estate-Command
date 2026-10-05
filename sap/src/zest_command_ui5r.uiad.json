@@ -1,0 +1,34 @@
+{
+  "formatVersion": "2",
+  "header": {
+    "description": "Tomorrow's crew assignment on the estate map, with the reasoning and the decision log",
+    "originalLanguage": "en",
+    "abapLanguageVersion": "cloudDevelopment"
+  },
+  "generalInformation": {
+    "appType": "ui5",
+    "catalogId": "SAP_TC_UI5_REPO_UIAD",
+    "targetMappingTitle": "Estate Command"
+  },
+  "ui5AppDetails": {
+    "appId": "zestate.command"
+  },
+  "navigation": {
+    "targetMappingId": "ZEST_COMMAND_UI5R_TM",
+    "semanticObject": "EstatePlan",
+    "action": "display",
+    "desktop": true,
+    "tablet": true,
+    "phone": true
+  },
+  "tiles": [
+    {
+      "id": "ZEST_COMMAND_UI5R_AL",
+      "tileType": "static",
+      "isDefault": true,
+      "standard": {
+        "title": "Estate Command"
+      }
+    }
+  ]
+}

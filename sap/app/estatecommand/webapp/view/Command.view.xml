@@ -1,0 +1,384 @@
+<mvc:View controllerName="zestate.command.controller.Command"
+          xmlns:mvc="sap.ui.core.mvc" xmlns="sap.m" xmlns:core="sap.ui.core"
+          xmlns:f="sap.ui.layout.form" xmlns:est="zestate.command.control"
+          xmlns:app="http://schemas.sap.com/sapui5/extension/sap.ui.core.CustomData/1"
+          height="100%">
+  <!-- the map fills the page; everything else floats over it on frosted glass -->
+  <Page id="page" showHeader="false" enableScrolling="false" class="estPage">
+    <content>
+      <est:BlockMap id="map" class="estMapFull" blocks="{view>/blocks}" lines="{view>/plan/_Lines}" fires="{view>/fires}" firesToggle=".onFiresToggle"
+                    selectedBlock="{view>/selected/key}" insetRight="{view>/insetRight}" insetBottom="{view>/insetBottom}" insetTop="80"
+                    select=".onBlockSelect"/>
+
+      <!-- brand and estate -->
+      <HBox class="estGlass estTopBar" alignItems="Center" renderType="Bare">
+        <core:Icon src="sap-icon://map-2" class="estBrandIcon"/>
+        <VBox class="estBrand" renderType="Bare">
+          <Title text="Estate Command" level="H1"/>
+          <Text text="{view>/subtitle}" class="estMuted" wrapping="false"/>
+        </VBox>
+        <Select id="estate" width="15rem" change=".onEstateChange" class="estGlassInput"
+                items="{ path: 'view>/estates', templateShareable: false }" selectedKey="{view>/estate}">
+          <core:Item key="{view>Estate}" text="{= ${view>Estate} ? ${view>Estate} + ' ' + ${view>EstateName} : ${view>EstateName} }"/>
+        </Select>
+      </HBox>
+
+      <!-- legend -->
+      <VBox class="estGlass estLegend" renderType="Bare">
+        <HBox class="estLegendHead" alignItems="Center" justifyContent="SpaceBetween" renderType="Bare">
+          <Title text="{view>/legendTitle}" level="H6" wrapping="false"/>
+          <Button type="Transparent" press=".onToggleLegend" tooltip="Show or hide the legend"
+                  icon="{= ${view>/legendOpen} ? 'sap-icon://slim-arrow-up' : 'sap-icon://slim-arrow-down' }"/>
+        </HBox>
+        <VBox visible="{view>/legendOpen}" renderType="Bare">
+          <HBox wrap="Wrap" items="{ path: 'view>/crews', templateShareable: false }" renderType="Bare" class="estChips">
+            <HBox class="estChip" alignItems="Center" renderType="Bare">
+              <core:Icon src="sap-icon://color-fill" color="{view>color}" size="0.75rem"/>
+              <Text text="{view>crew} &#183; {view>blocks}" wrapping="false"/>
+            </HBox>
+          </HBox>
+          <core:HTML content="&lt;div class=&quot;estKeys&quot;&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--missed&quot;&gt;&lt;/i&gt;due, not reached&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--idle&quot;&gt;&lt;/i&gt;nothing due&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--seq&quot;&gt;1&lt;/i&gt;order of work&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--held&quot;&gt;&lt;/i&gt;held back for fire&lt;/span&gt;&lt;span&gt;&lt;i class=&quot;estKey estKey--fire&quot;&gt;&lt;/i&gt;fire hotspot (NASA FIRMS)&lt;/span&gt;&lt;/div&gt;"/>
+        </VBox>
+      </VBox>
+
+      <!-- the block picked on the map: its facts run on stripes across the map, its lines on the card -->
+      <est:BlockStripes id="stripes" class="estStripesStage" facts="{view>/selected/facts}" color="{view>/selected/color}"
+                        config="{stripes>/}"/>
+      <VBox id="blockCard" class="estGlass estBlockCard" visible="{= !!${view>/selected} }" renderType="Bare">
+        <HBox class="estCardHead" alignItems="Center" renderType="Bare">
+          <core:Icon src="sap-icon://color-fill" color="{view>/selected/color}" size="0.875rem"/>
+          <VBox class="estCardTitle" renderType="Bare">
+            <Title text="Block {view>/selected/label}" level="H3" wrapping="false"/>
+            <Text text="{view>/selected/state}" class="estMuted" wrapping="false"/>
+          </VBox>
+          <Button type="Transparent" press=".onStripesToggle"
+                  icon="{= ${stripes>/show} ? 'sap-icon://hide' : 'sap-icon://show' }"
+                  tooltip="{= ${stripes>/show} ? 'Hide the ribbons' : 'Show the ribbons' }"/>
+          <Button type="Transparent" icon="sap-icon://action-settings" tooltip="Configure the stripes" press=".onStripesSettings"/>
+          <Button type="Transparent" icon="sap-icon://decline" tooltip="Close" press=".onBlockClose"/>
+        </HBox>
+        <List items="{ path: 'view>/selected/rows', templateShareable: false }" backgroundDesign="Transparent"
+              showSeparators="Inner" noDataText="Nothing due on this block in the plan." class="estCardLines">
+          <CustomListItem>
+            <VBox class="estLine" renderType="Bare">
+              <ObjectStatus text="{view>title}" state="{view>state}"/>
+              <Text text="{view>detail}" class="estMuted"/>
+            </VBox>
+          </CustomListItem>
+        </List>
+      </VBox>
+
+      <!-- the plan: collapses to the handle on the right -->
+      <Button id="panelHandle" class="estPanelHandle" icon="sap-icon://navigation-left-arrow" text="Plan"
+              visible="{= !${view>/panelOpen} }" press=".onTogglePanel" tooltip="Show the plan"/>
+      <VBox id="panel" class="estGlass estPanel" renderType="Bare">
+        <core:HTML content="&lt;div class=&quot;estPanelGrip&quot; role=&quot;separator&quot; aria-orientation=&quot;vertical&quot; aria-label=&quot;Resize the plan panel&quot; tabindex=&quot;0&quot; title=&quot;Drag to resize, double-click to reset&quot;&gt;&lt;/div&gt;"/>
+        <HBox class="estPanelHead" alignItems="Center" renderType="Bare">
+          <Title text="Tomorrow's work" level="H2" wrapping="false"/>
+          <Button type="Transparent" icon="sap-icon://navigation-right-arrow" tooltip="Hide the plan" press=".onTogglePanel"/>
+        </HBox>
+
+        <!-- one tile per operation: the latest plan of each -->
+        <List id="ops" class="estOps" items="{ path: 'view>/ops', templateShareable: false }" mode="SingleSelectMaster"
+              includeItemInSelection="true" selectionChange=".onOperationSelect" showSeparators="None"
+              backgroundDesign="Transparent">
+          <CustomListItem selected="{view>selected}">
+            <VBox class="estOp" renderType="Bare">
+              <HBox class="estOpHead" alignItems="Center" renderType="Bare">
+                <core:Icon src="{view>icon}" size="0.875rem"/>
+                <Text text="{view>text}" wrapping="false"/>
+              </HBox>
+              <Text text="{view>coverage}" class="estOpValue" wrapping="false" tooltip="Blocks reached of the blocks due"/>
+              <ObjectStatus text="{view>statusText}" state="{view>state}" class="estOpStatus"/>
+              <core:HTML content="{view>bar}"/>
+            </VBox>
+          </CustomListItem>
+        </List>
+
+        <HBox class="estPlanRow" alignItems="Center" renderType="Bare">
+          <Select width="100%" change=".onPlanChange" forceSelection="false" class="estGrow"
+                  items="{ path: 'view>/plans', templateShareable: false }" selectedKey="{view>/planUuid}">
+            <core:Item key="{view>PlanUuid}" text="{view>PlanDate} &#183; {view>StatusText} &#183; {view>ModelId}"/>
+          </Select>
+          <Button text="Plan Tomorrow" tooltip="Plan Tomorrow" type="Emphasized" icon="sap-icon://create" press=".onGenerate"/>
+        </HBox>
+
+        <!-- NASA FIRMS: fire hotspots around the estate, whether or not there is a plan -->
+        <MessageStrip class="estFireStrip" text="{view>/fire/text}" type="{view>/fire/type}" showIcon="true"
+                      customIcon="sap-icon://temperature" visible="{= !!${view>/fire} }">
+          <link><Link text="{= ${view>/fire/live} ? 'Show on map' : 'Read live on map' }" press=".onShowFires"
+                      visible="{= !!${view>/estate} &amp;&amp; (!${view>/fire/live} || ${view>/fire/count} > 0) }"/></link>
+        </MessageStrip>
+
+        <VBox class="estPanelScroll" renderType="Bare">
+          <VBox visible="{= !${view>/plan} }" renderType="Bare" class="estEmpty">
+            <Text text="{view>/emptyText}"/>
+          </VBox>
+          <VBox visible="{= !!${view>/plan} }" renderType="Bare" class="estSummary">
+            <Title text="{view>/plan/Headline}" wrapping="true" level="H3"/>
+            <HBox wrap="Wrap" renderType="Bare" class="estMeta">
+              <ObjectStatus text="{view>/plan/StatusText}" inverted="true"
+                            state="{= ${view>/plan/StatusCriticality} === 3 ? 'Success' : ${view>/plan/StatusCriticality} === 1 ? 'Error' : 'Warning' }"/>
+              <Text text="{view>/plan/PlanDate}" class="estMuted"/>
+              <Text text="{view>/plan/ModelId}" class="estMuted"/>
+            </HBox>
+            <HBox class="estKpis" renderType="Bare">
+              <VBox class="estKpi" renderType="Bare">
+                <Text text="Blocks" class="estKpiLabel"/>
+                <Text text="{view>/plan/BlocksAssigned}/{view>/plan/BlocksDue}" class="estKpiValue"/>
+              </VBox>
+              <VBox class="estKpi" renderType="Bare">
+                <Text text="Man-days" class="estKpiLabel"/>
+                <Text text="{view>/plan/ManDaysAssigned}" class="estKpiValue"/>
+              </VBox>
+              <VBox class="estKpi" renderType="Bare">
+                <Text text="Gap to bound" class="estKpiLabel"/>
+                <Text text="{view>/plan/GapPercent}%" class="estKpiValue"/>
+              </VBox>
+              <VBox class="estKpi" renderType="Bare">
+                <Text text="Figures checked" class="estKpiLabel"/>
+                <Text text="{view>/plan/AuditChecked}" class="estKpiValue"/>
+              </VBox>
+            </HBox>
+            <MessageStrip visible="{= !!${view>/plan/AuditUnverified} }" type="Warning" showIcon="true"
+                          text="Figures in the words that appear nowhere in the data: {view>/plan/AuditUnverified}"/>
+            <MessageStrip visible="{= !!${view>/plan/ErrorText} }" type="Error" showIcon="true" text="{view>/plan/ErrorText}"/>
+            <MessageStrip visible="{= !!${view>/plan/StopsWork} }" type="Warning" showIcon="true" text="{view>/plan/StopReason}"/>
+          </VBox>
+
+          <IconTabBar id="tabs" expandable="true" expanded="true" class="estTabs sapUiNoContentPadding"
+                      backgroundDesign="Transparent" headerBackgroundDesign="Transparent" applyContentPadding="false"
+                      visible="{= !!${view>/plan} }">
+            <items>
+              <IconTabFilter key="plan" text="Plan">
+                <VBox renderType="Bare" class="estSection">
+                  <Text text="{view>/plan/Summary}" renderWhitespace="true"/>
+                  <List items="{ path: 'view>/crews', templateShareable: false }" noDataText="Nothing assigned"
+                        backgroundDesign="Transparent" showSeparators="Inner" class="estCrews">
+                    <CustomListItem>
+                      <HBox alignItems="Center" renderType="Bare" class="estCrew">
+                        <core:Icon src="sap-icon://color-fill" color="{view>color}" size="0.875rem"/>
+                        <VBox renderType="Bare">
+                          <Text text="{view>crew}: blocks {view>range}"/>
+                          <Text text="{view>present} expected, {view>blocks} blocks, {view>manDays} man-days" class="estMuted"/>
+                        </VBox>
+                      </HBox>
+                    </CustomListItem>
+                  </List>
+                </VBox>
+              </IconTabFilter>
+
+              <IconTabFilter key="why" text="Why">
+                <VBox renderType="Bare" class="estSection">
+                  <Text text="{view>/plan/WhyText}" renderWhitespace="true"/>
+                  <!-- the scheduler's figures: label over value, two to a row -->
+                  <HBox items="{ path: 'view>/whyFacts', templateShareable: false }" renderType="Bare" class="estFacts">
+                    <VBox renderType="Bare" class="estFact">
+                      <Text text="{view>label}" class="estFactLabel"/>
+                      <Text text="{view>value}" class="estFactValue"/>
+                      <Text text="{view>note}" class="estMuted" visible="{= !!${view>note} }"/>
+                    </VBox>
+                  </HBox>
+
+                  <!-- the plan's lines: a grid of its own, reached first, then the blocks left waiting -->
+                  <VBox renderType="Bare" class="estGrid">
+                    <HBox renderType="Bare" class="estGridRow estGridHead">
+                      <Text text="Crew"/><Text text="Block"/><Text text="Urgency" class="estNum" textAlign="End"/>
+                      <Text text="Man-days" class="estNum" textAlign="End"/><Text text="Cost/day" class="estNum" textAlign="End"/>
+                    </HBox>
+                    <Text text="Reached &#183; {view>/lineCounts/reached}" class="estGridGroup"/>
+                    <VBox items="{ path: 'view>/lineRows/reached', templateShareable: false }" renderType="Bare">
+                      <HBox renderType="Bare" class="estGridRow">
+                        <HBox renderType="Bare" class="estGridCrew" alignItems="Center">
+                          <core:Icon src="sap-icon://color-fill" color="{view>color}" size="0.75rem"/>
+                          <Text text="{view>crew}" wrapping="false"/>
+                          <Text text="{view>seq}" class="estMuted" wrapping="false"/>
+                        </HBox>
+                        <Text text="{view>block}" wrapping="false"/>
+                        <Text text="{view>urgency}" class="estNum" textAlign="End" wrapping="false"/>
+                        <Text text="{view>manDays}" class="estNum" textAlign="End" wrapping="false"/>
+                        <Text text="{view>waiting}" class="estNum" textAlign="End" wrapping="false" tooltip="{view>waitingFull}"/>
+                      </HBox>
+                    </VBox>
+                    <Text text="Held back for fire &#183; {view>/lineCounts/held}" class="estGridGroup estGridGroup--fire"
+                          visible="{= ${view>/lineCounts/held} > 0 }"/>
+                    <VBox items="{ path: 'view>/lineRows/held', templateShareable: false }" renderType="Bare">
+                      <HBox renderType="Bare" class="estGridRow estGridRow--fire">
+                        <HBox renderType="Bare" class="estGridCrew" alignItems="Center">
+                          <core:Icon src="sap-icon://temperature" color="#e8590c" size="0.75rem"/>
+                          <Text text="fire hold" class="estMuted" wrapping="false"/>
+                        </HBox>
+                        <Text text="{view>block}" wrapping="false"/>
+                        <Text text="{view>urgency}" class="estNum" textAlign="End" wrapping="false"/>
+                        <Text text="{view>manDays}" class="estNum" textAlign="End" wrapping="false"/>
+                        <Text text="{view>waiting}" class="estNum" textAlign="End" wrapping="false" tooltip="{view>waitingFull}"/>
+                      </HBox>
+                    </VBox>
+                    <Text text="Not reached &#183; {view>/lineCounts/missed}" class="estGridGroup estGridGroup--missed"
+                          visible="{= ${view>/lineCounts/missed} > 0 }"/>
+                    <VBox items="{ path: 'view>/lineRows/missed', templateShareable: false }" renderType="Bare">
+                      <HBox renderType="Bare" class="estGridRow estGridRow--missed">
+                        <HBox renderType="Bare" class="estGridCrew" alignItems="Center">
+                          <core:Icon src="sap-icon://status-negative" color="Negative" size="0.75rem"/>
+                          <Text text="waiting" class="estMuted" wrapping="false"/>
+                        </HBox>
+                        <Text text="{view>block}" wrapping="false"/>
+                        <Text text="{view>urgency}" class="estNum" textAlign="End" wrapping="false"/>
+                        <Text text="{view>manDays}" class="estNum" textAlign="End" wrapping="false"/>
+                        <Text text="{view>waiting}" class="estNum" textAlign="End" wrapping="false" tooltip="{view>waitingFull}"/>
+                      </HBox>
+                    </VBox>
+                    <Text text="Cost/day: what one more day of waiting costs on the block, IDR." class="estMuted estGridFoot"/>
+                  </VBox>
+                </VBox>
+              </IconTabFilter>
+
+              <IconTabFilter key="decide" text="Decide">
+                <VBox renderType="Bare" class="estSection">
+                  <f:SimpleForm editable="true" layout="ResponsiveGridLayout" labelSpanL="12" labelSpanM="12" labelSpanS="12"
+                                backgroundDesign="Transparent" class="estForm">
+                    <Label text="Note"/><Input value="{view>/decision/note}"/>
+                    <Label text="Look again on (deferral)"/><DatePicker value="{view>/decision/dueDate}" valueFormat="yyyy-MM-dd"/>
+                    <Label text="Expected effect"/><Input value="{view>/decision/expected}"/>
+                  </f:SimpleForm>
+                  <HBox wrap="Wrap" renderType="Bare" class="estActions">
+                    <Button text="Accept" type="Accept" press=".onDecide" app:decision="Accept"/>
+                    <Button text="Reject" type="Reject" press=".onDecide" app:decision="Reject"/>
+                    <Button text="Defer" press=".onDecide" app:decision="Defer"/>
+                    <Button text="Work Document" icon="sap-icon://document-text" press=".onDraft"/>
+                  </HBox>
+                  <Panel expandable="true" expanded="false" headerText="Replan with a changed constraint"
+                         backgroundDesign="Transparent" class="estFold">
+                    <f:SimpleForm editable="true" layout="ResponsiveGridLayout" labelSpanL="12" labelSpanM="12" labelSpanS="12"
+                                  backgroundDesign="Transparent" class="estForm">
+                      <Label text="Crew out for the day"/><Input value="{view>/replan/CrewOut}"/>
+                      <Label text="Crew / headcount"/><Input value="{view>/replan/CrewCode}"/><StepInput value="{view>/replan/CrewPresent}" min="0"/>
+                      <Label text="Rain on the day, mm"/><Input value="{view>/replan/RainMm}" placeholder="blank = forecast"/>
+                      <Label text="Block held back"/><Input value="{view>/replan/BlockHeld}"/>
+                      <Label text="Contiguity bonus %"/><Input value="{view>/replan/ContiguityPct}" placeholder="blank = register"/>
+                      <Label text="Clear earlier changes"/><CheckBox selected="{view>/replan/ClearChanges}"/>
+                    </f:SimpleForm>
+                    <Button text="Replan" icon="sap-icon://synchronize" press=".onReplan"/>
+                  </Panel>
+                  <Panel expandable="true" expanded="false" headerText="Decision log and work document"
+                         backgroundDesign="Transparent" class="estFold">
+                    <Text text="{view>/plan/DecidedBy} {view>/plan/DecidedAt} {view>/plan/DecisionNote} {view>/plan/DueDate} {view>/plan/ExpectedEffect}"/>
+                    <Text text="{view>/plan/ArtifactText}" renderWhitespace="true" class="estDocument"/>
+                  </Panel>
+                </VBox>
+              </IconTabFilter>
+
+              <IconTabFilter key="ask" text="Ask">
+                <VBox renderType="Bare" class="estSection">
+                  <TextArea value="{view>/question}" width="100%" rows="3" growing="true"
+                            placeholder="G1-01 is four men short tomorrow - which blocks wait?"/>
+                  <Button text="Ask" type="Emphasized" icon="sap-icon://paper-plane" press=".onAsk"/>
+                  <Text text="{view>/answer/Answer}" renderWhitespace="true"/>
+                  <MessageStrip visible="{= !!${view>/answer/AuditUnverified} }" type="Warning" showIcon="true"
+                                text="Not found in the data: {view>/answer/AuditUnverified}"/>
+                  <ObjectStatus visible="{= !!${view>/answer} }" text="{view>/answer/AuditChecked} figures checked, {view>/answer/ModelId}"/>
+                </VBox>
+              </IconTabFilter>
+
+              <IconTabFilter key="handover" text="Handover">
+                <VBox renderType="Bare" class="estSection">
+                  <HBox wrap="Wrap" renderType="Bare" class="estActions">
+                    <Button text="Write Shift Handover" icon="sap-icon://shift-change" press=".onHandover"/>
+                    <Button text="Did It Work?" icon="sap-icon://inspection" press=".onOutcomes"/>
+                  </HBox>
+                  <Title text="{view>/handover/HandoverHeadline}" wrapping="true" level="H4"/>
+                  <Label text="Decided" visible="{= !!${view>/handover} }"/><Text text="{view>/handover/Decided}" renderWhitespace="true"/>
+                  <Label text="Open" visible="{= !!${view>/handover} }"/><Text text="{view>/handover/OpenPositions}" renderWhitespace="true"/>
+                  <Label text="Watch" visible="{= !!${view>/handover} }"/><Text text="{view>/handover/Watchlist}" renderWhitespace="true"/>
+                  <Text text="{view>/handover/HandoverNote}"/>
+                  <Table items="{ path: 'view>/outcomes', templateShareable: false }" visible="{= ${view>/outcomes}.length > 0 }"
+                         backgroundDesign="Transparent" class="estTable">
+                    <columns>
+                      <Column><Text text="Block"/></Column>
+                      <Column><Text text="Crew"/></Column>
+                      <Column hAlign="End"><Text text="Planned"/></Column>
+                      <Column hAlign="End"><Text text="Actual"/></Column>
+                      <Column hAlign="End"><Text text="%"/></Column>
+                    </columns>
+                    <items>
+                      <ColumnListItem>
+                        <Text text="{view>BlockLabel}"/>
+                        <Text text="{view>CrewCode}"/>
+                        <Text text="{view>PlannedQty}"/>
+                        <Text text="{view>ActualQty}"/>
+                        <Text text="{view>AdherencePct}"/>
+                      </ColumnListItem>
+                    </items>
+                  </Table>
+                </VBox>
+              </IconTabFilter>
+
+              <IconTabFilter key="stores" text="Stores">
+                <VBox renderType="Bare" class="estSection">
+                  <Button text="Read the Store" icon="sap-icon://product" press=".onStores"/>
+                  <List items="{ path: 'view>/stores', templateShareable: false }" noDataText="Press Read the Store"
+                        backgroundDesign="Transparent" showSeparators="Inner">
+                    <CustomListItem>
+                      <VBox renderType="Bare" class="estLine">
+                        <ObjectStatus title="{view>MaterialName}" text="{view>Headline}"
+                                      state="{= ${view>StatusCriticality} === 1 ? 'Error' : ${view>StatusCriticality} === 2 ? 'Warning' : 'Success' }"/>
+                        <Text text="{view>LeadSentence}" class="estMuted"/>
+                        <Text text="{view>BufferSentence}" class="estMuted"/>
+                      </VBox>
+                    </CustomListItem>
+                  </List>
+                </VBox>
+              </IconTabFilter>
+            </items>
+          </IconTabBar>
+        </VBox>
+      </VBox>
+    </content>
+
+    <dependents>
+      <Popover id="stripesSettings" title="Block stripes" placement="Auto" contentWidth="21rem" showArrow="false"
+               class="estPop">
+        <f:SimpleForm editable="true" layout="ResponsiveGridLayout" labelSpanL="4" labelSpanM="4" labelSpanS="4"
+                      backgroundDesign="Transparent">
+          <Label text="Ribbons"/><Switch state="{stripes>/show}" customTextOn="On" customTextOff="Off"/>
+          <Label text="Preset"/>
+          <Select selectedKey="{stripes>/preset}" change=".onStripesPreset">
+            <core:Item key="ribbon" text="Ribbon"/>
+            <core:Item key="marquee" text="Marquee"/>
+            <core:Item key="wave" text="Wave"/>
+            <core:Item key="flip" text="Flip"/>
+            <core:Item key="stacks" text="Stacks"/>
+            <core:Item key="custom" text="Custom"/>
+          </Select>
+          <Label text="Colours"/>
+          <Select selectedKey="{stripes>/palette}">
+            <core:Item key="crew" text="Crew colour"/>
+            <core:Item key="estate" text="Estate"/>
+            <core:Item key="signal" text="Signal"/>
+            <core:Item key="mono" text="Mono"/>
+          </Select>
+          <Label text="Facts"/>
+          <MultiComboBox selectedKeys="{stripes>/facts}" items="{ path: 'stripes>/catalogue', templateShareable: false }">
+            <core:Item key="{stripes>key}" text="{stripes>text}"/>
+          </MultiComboBox>
+          <Label text="Angle"/><Slider min="-30" max="30" step="1" value="{stripes>/angle}"/>
+          <Label text="Stripes"/><Slider min="1" max="20" step="1" value="{stripes>/rows}"/>
+          <Label text="Thickness"/><Slider min="12" max="140" step="2" value="{stripes>/thickness}"/>
+          <Label text="Twist"/><Slider min="0" max="3.14" step="0.02" value="{stripes>/twist}"/>
+          <Label text="Twists"/><Slider min="0" max="4" step="0.1" value="{stripes>/twistWaves}"/>
+          <Label text="Ripple"/><Slider min="0" max="20" step="1" value="{stripes>/wave}"/>
+          <Label text="Speed"/><Slider min="0" max="3" step="0.1" value="{stripes>/speed}"/>
+          <Label text="Text size"/><Slider min="0.4" max="0.95" step="0.05" value="{stripes>/fontScale}"/>
+          <Label text="Capitals"/><Switch state="{stripes>/uppercase}"/>
+          <Label text="Animate"/><Switch state="{stripes>/animate}"/>
+        </f:SimpleForm>
+        <footer>
+          <Toolbar>
+            <ToolbarSpacer/>
+            <Button text="Reset" press=".onStripesReset"/>
+          </Toolbar>
+        </footer>
+      </Popover>
+    </dependents>
+  </Page>
+</mvc:View>
