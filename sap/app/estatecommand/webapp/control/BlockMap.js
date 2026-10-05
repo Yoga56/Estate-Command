@@ -316,13 +316,13 @@ sap.ui.define([
         return;
       }
       this._closeMenu();
+      bar.menu.innerHTML = "";
       const element = L.DomUtil.create("button", "estMapMenuItem estMapMenuItem--check", bar.menu);
       const note = () => this._gridFailed ? "could not be read" : "609 cells of 100 km, Zenodo 13379129";
       const paint = () => {
         element.setAttribute("aria-checked", String(this._gridOn));
         element.innerHTML = "<span>Oil palm grid<small>" + escape(note()) + "</small></span>" + ICONS.check;
       };
-      bar.menu.innerHTML = "";
       bar.menu.setAttribute("role", "menu");
       bar.menu.setAttribute("aria-label", "Oil palm grid");
       element.type = "button";
