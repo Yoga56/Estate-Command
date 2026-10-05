@@ -50,7 +50,7 @@ sap.ui.define([
       url: sap.ui.require.toUrl("zestate/command/data/oilpalm-grid.json"),
       style: () => ({ color: "#ffb703", weight: 1, opacity: 0.8, dashArray: "4 4", fillColor: "#ffb703", fillOpacity: 0.06,
         interactive: false }) },
-    { key: "year", label: "Planting year", note: "palm by year planted, EC tile (Papua)", ramp: true,
+    { key: "year", label: "Planting year", note: "palm by year planted, around the sample estates", ramp: true,
       url: sap.ui.require.toUrl("zestate/command/data/oilpalm-blocks-by-year.json"),
       style: (feature) => ({ color: yearColor(feature.properties.year), weight: 1, opacity: 0.95,
         fillColor: yearColor(feature.properties.year), fillOpacity: 0.42 }),
@@ -405,9 +405,9 @@ sap.ui.define([
           }
         } });
         state.group.addLayer(layer);
-        // a layer with its own place (the EC tile) is flown to when it is not in view
-        if (def.ramp && !this._map.getBounds().intersects(layer.getBounds())) {
-          this._map.flyToBounds(layer.getBounds(), { duration: 1, maxZoom: 12 });
+        // a layer with its own places (one window per estate) is flown to the nearest one when none is in view
+        if (def.ramp && !layer.getLayers().some((f) => this._map.getBounds().intersects(f.getBounds()))) {
+          this._flyToNearestEstate(layer);
         }
       }
       const button = this.getDomRef() && this.getDomRef().querySelectorAll(".estMapBtn")[4];
@@ -415,6 +415,21 @@ sap.ui.define([
         button.setAttribute("aria-pressed", String(Object.values(this._palm).some((l) => l.on)));
       }
       return this;
+    },
+
+    /** Flies to the estate window of the oil palm year layer nearest the middle of the map */
+    _flyToNearestEstate: function (layer) {
+      const center = this._map.getCenter();
+      const windows = {};
+      layer.eachLayer((polygon) => {
+        const code = polygon.feature.properties.estate;
+        windows[code] = windows[code] ? windows[code].extend(polygon.getBounds()) : L.latLngBounds(polygon.getBounds().getSouthWest(),
+          polygon.getBounds().getNorthEast());
+      });
+      const nearest = Object.values(windows).sort((a, b) => a.getCenter().distanceTo(center) - b.getCenter().distanceTo(center))[0];
+      if (nearest) {
+        this._map.flyToBounds(nearest, { duration: 1, maxZoom: 12 });
+      }
     },
 
     /** The fire menu: the live layer on or off, which satellites, and whether nearby detections merge */
