@@ -138,7 +138,7 @@ erDiagram
 | `ZCL_EST_DATA` | One estate's state read once per request (blocks with rings and centroids, crews, attendance, ledger, upkeep); expected headcount; default plan date; number formatting |
 | `ZCL_EST_GEO` | Ring parse/format, centroid, equirectangular km, adjacency by vertex grid hash (~55 m), range labels ("14-19, 23") |
 | `ZCL_EST_DEMAND` | What is due per operation with urgency, quantity, man-days, value, deferral |
-| `ZCL_EST_SCHEDULER` | Crews and capacity, fire hold, greedy, swap pass, finalise, upper bound, contiguity cost, binding constraint |
+| `ZCL_EST_SCHEDULER` | Crews and capacity, fire hold, greedy, swap pass, route order, finalise, upper bound, contiguity cost, binding constraint |
 | `ZCL_EST_WEATHER` | Open-Meteo daily precipitation and probability |
 | `ZCL_EST_FIRMS` | FIRMS area CSV (4 products), parse, nearest block, inside-block test, radius filter; key handling; Sumatra area read |
 | `ZCL_EST_AUDIT` | Number/label tokenizer and evidence check |
@@ -266,6 +266,8 @@ greedy:  repeat round-robin over crews with remaining ≥ 0.35 md:
              density = score / man_days
            take the best density; partial if ≥ 30 % fits
 swap:    up to 4 passes, ≤ 40,000 evaluations: exchange blocks between crews if value rises
+route:    per crew: nearest neighbour from home, then 2-opt on the open path (≤ 20 passes);
+          kept if crew objective (deferral + bonus − travel) is no worse; seq renumbered
 finalise: recompute each line's terms along the final order
 upper    ← per division pool: fractional knapsack of deferral/man-day over capacity
 gap      ← (upper − achieved) / upper

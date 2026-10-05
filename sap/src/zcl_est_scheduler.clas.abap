@@ -11,7 +11,9 @@ CLASS zcl_est_scheduler DEFINITION
     "! deferral (what leaving the block one more cycle costs), contiguity (a bonus for a block
     "! next to one the crew already has), travel (time in transit at the man-day cost) and
     "! capacity (man-days the crew has tomorrow). Greedy by value density, round-robin across
-    "! crews, then a swap-improvement pass. Not an LP: every line has to be defended to a
+    "! crews, a swap-improvement pass, then each crew's blocks are put in a short route from its
+    "! home (the greedy picks by value, wherever the block lies, so its pick order zigzags;
+    "! the route only reorders, so the value recovered does not change). Not an LP: every line has to be defended to a
     "! mandor who disagrees with it. The gap to a relaxed upper bound (fractional knapsack,
     "! no geography) is reported so the greedy choice is accountable, and what contiguity
     "! cost is measured by running the plan again without it.
@@ -117,6 +119,8 @@ CLASS zcl_est_scheduler DEFINITION
     CONSTANTS min_partial_share TYPE decfloat34 VALUE '0.3'.
     CONSTANTS max_swap_passes TYPE i VALUE 4.
     CONSTANTS max_swap_evals TYPE i VALUE 40000.
+    "! 2-opt passes over a crew's day
+    CONSTANTS max_route_passes TYPE i VALUE 20.
 
     TYPES:
       BEGIN OF ty_taken,
@@ -172,7 +176,14 @@ CLASS zcl_est_scheduler DEFINITION
                 taken         TYPE ty_taken_set
       RETURNING VALUE(result) TYPE i.
 
-    "! Recomputes each block's terms along the final order, for the Why view
+    "! The crew's blocks in a short open path from its home: nearest neighbour, then 2-opt.
+    "! Same blocks, same shares; only the order (SEQ) changes
+    METHODS route_order
+      IMPORTING crew          TYPE ty_crew
+      RETURNING VALUE(result) TYPE ty_assignments.
+
+    "! Puts each crew's blocks in a route, then recomputes each block's terms along that order,
+    "! for the Why view
     METHODS finalise
       IMPORTING contiguity TYPE decfloat34
       CHANGING  crews      TYPE ty_crews.
@@ -535,8 +546,91 @@ CLASS zcl_est_scheduler IMPLEMENTATION.
   ENDMETHOD.
 
 
+  METHOD route_order.
+    DATA order TYPE STANDARD TABLE OF i WITH EMPTY KEY.
+    DATA unplaced TYPE STANDARD TABLE OF i WITH EMPTY KEY.
+
+    result = crew-assigned.
+    DATA(count) = lines( crew-assigned ).
+    IF count < 2.
+      RETURN.
+    ENDIF.
+
+    " nearest neighbour from the crew's home
+    unplaced = VALUE #( FOR n = 1 UNTIL n > count ( n ) ).
+    DATA(position) = crew-home.
+    WHILE unplaced IS NOT INITIAL.
+      DATA(nearest) = 0.
+      DATA(nearest_km) = CONV f( 0 ).
+      LOOP AT unplaced INTO DATA(candidate).
+        DATA(slot) = sy-tabix.
+        DATA(km_to) = zcl_est_geo=>km( a = position b = crew-assigned[ candidate ]-item-centroid ).
+        IF nearest = 0 OR km_to < nearest_km.
+          nearest    = slot.
+          nearest_km = km_to.
+        ENDIF.
+      ENDLOOP.
+      APPEND unplaced[ nearest ] TO order.
+      position = crew-assigned[ unplaced[ nearest ] ]-item-centroid.
+      DELETE unplaced INDEX nearest.
+    ENDWHILE.
+
+    " 2-opt on the open path home - first - ... - last: reverse any stretch that shortens it
+    DATA(improved) = abap_true.
+    DATA(passes) = 0.
+    WHILE improved = abap_true AND passes < max_route_passes.
+      improved = abap_false.
+      passes = passes + 1.
+      DATA(first_stop) = 1.
+      WHILE first_stop < count.
+        DATA(last_stop) = first_stop + 1.
+        WHILE last_stop <= count.
+          DATA(before) = COND zcl_est_geo=>ty_point( WHEN first_stop = 1 THEN crew-home
+                                                      ELSE crew-assigned[ order[ first_stop - 1 ] ]-item-centroid ).
+          DATA(head) = crew-assigned[ order[ first_stop ] ]-item-centroid.
+          DATA(tail) = crew-assigned[ order[ last_stop ] ]-item-centroid.
+          DATA(old_km) = zcl_est_geo=>km( a = before b = head ).
+          DATA(new_km) = zcl_est_geo=>km( a = before b = tail ).
+          IF last_stop < count.
+            DATA(after) = crew-assigned[ order[ last_stop + 1 ] ]-item-centroid.
+            old_km = old_km + zcl_est_geo=>km( a = tail b = after ).
+            new_km = new_km + zcl_est_geo=>km( a = head b = after ).
+          ENDIF.
+          IF new_km < old_km - '0.000001'.
+            DATA(low) = first_stop.
+            DATA(high) = last_stop.
+            WHILE low < high.
+              DATA(held) = order[ low ].
+              order[ low ] = order[ high ].
+              order[ high ] = held.
+              low  = low + 1.
+              high = high - 1.
+            ENDWHILE.
+            improved = abap_true.
+          ENDIF.
+          last_stop = last_stop + 1.
+        ENDWHILE.
+        first_stop = first_stop + 1.
+      ENDWHILE.
+    ENDWHILE.
+
+    result = VALUE #( FOR index IN order ( crew-assigned[ index ] ) ).
+    LOOP AT result ASSIGNING FIELD-SYMBOL(<line>).
+      <line>-seq = sy-tabix.
+    ENDLOOP.
+  ENDMETHOD.
+
+
   METHOD finalise.
     LOOP AT crews ASSIGNING FIELD-SYMBOL(<crew>).
+      " a short route for the crew's day, kept only if the plan's own objective is no worse
+      DATA(routed) = <crew>.
+      routed-assigned = route_order( <crew> ).
+      IF crew_objective( crew = routed contiguity = contiguity )
+         >= crew_objective( crew = <crew> contiguity = contiguity ).
+        <crew>-assigned = routed-assigned.
+      ENDIF.
+
       DATA(position) = <crew>-home.
       DATA(seen) = VALUE ty_assignments( ).
       LOOP AT <crew>-assigned ASSIGNING FIELD-SYMBOL(<assignment>).

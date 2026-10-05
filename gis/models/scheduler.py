@@ -29,10 +29,13 @@ the weight at zero.
 
 The method
 ----------
-Greedy by value density, round-robin across crews, then a swap-improvement
-pass. Not an LP. The output has to be defended line by line to a mandor who
+Greedy by value density, round-robin across crews, a swap-improvement pass,
+then each crew's blocks are put in a short route. Not an LP. The output has to be defended line by line to a mandor who
 disagrees with it, and "this block scored higher than that one, here is the
 arithmetic" survives that conversation where a simplex tableau does not.
+Choosing the blocks and ordering them are separate steps: the greedy picks
+blocks by value, wherever they lie, so its pick order zigzags; the route step
+only reorders what a crew already has, so value recovered does not change.
 The gap to a relaxed upper bound (fractional knapsack, no contiguity, no
 travel) is reported so the greedy choice is accountable.
 
@@ -80,6 +83,8 @@ MIN_PARTIAL_SHARE = 0.3
 # Swap-improvement budget.
 MAX_SWAP_PASSES = 4
 MAX_SWAP_EVALS = 40000
+# Route ordering: 2-opt passes over a crew's day.
+MAX_ROUTE_PASSES = 20
 
 
 # ── geometry ───────────────────────────────────────────────────────────────
@@ -361,9 +366,65 @@ def _swap_pass(crews: list, items: list, adj: dict, av: dict, operation: str,
     return accepted
 
 
+def _route_order(start, points: list) -> list[int]:
+    """Indexes of `points` in a short open path from `start`.
+
+    Nearest neighbour first, then 2-opt: reverse any stretch of the path that
+    shortens it, until none does. A crew's day is a dozen blocks, so this is
+    instant and good to a few per cent of the best route.
+    """
+    n = len(points)
+    left = list(range(n))
+    order, pos = [], start
+    while left:
+        j = min(left, key=lambda k: (_km(pos, points[k]), k))
+        order.append(j)
+        left.remove(j)
+        pos = points[j]
+    for _ in range(MAX_ROUTE_PASSES):
+        improved = False
+        for i in range(n - 1):
+            for j in range(i + 1, n):
+                a = start if i == 0 else points[order[i - 1]]
+                b, c = points[order[i]], points[order[j]]
+                d = points[order[j + 1]] if j + 1 < n else None
+                old = _km(a, b) + (_km(c, d) if d else 0.0)
+                new = _km(a, c) + (_km(b, d) if d else 0.0)
+                if new < old - 1e-9:
+                    order[i:j + 1] = reversed(order[i:j + 1])
+                    improved = True
+        if not improved:
+            break
+    return order
+
+
+def _route(crew: dict, adj: dict, av: dict, operation: str, contig_w: float) -> None:
+    """Put the crew's blocks in a short route from its home, in place.
+
+    The blocks and their shares stay as chosen; only the order changes, so the
+    deferral recovered is the same. The new order is kept only if the crew's
+    whole objective (deferral + contiguity bonus - travel) is no worse, so a
+    reorder never trades a contiguity bonus for less than it saves in travel.
+    """
+    assigned = crew["assigned"]
+    if len(assigned) < 2 or operation == "dispatch":
+        return
+    order = _route_order(crew["home"], [a["centroid"] for a in assigned])
+    routed = [assigned[i] for i in order]
+    before = _crew_objective(crew, adj, av, operation, contig_w)
+    crew["assigned"] = routed
+    if _crew_objective(crew, adj, av, operation, contig_w) < before:
+        crew["assigned"] = assigned
+        return
+    for n, a in enumerate(routed, 1):
+        a["seq"] = n
+
+
 def _finalise(crews: list, adj: dict, av: dict, operation: str, contig_w: float) -> None:
-    """Recompute each block's terms along the final order, for the Why tab."""
+    """Order each crew's blocks as a route, then recompute each block's terms
+    along that order, for the Why tab."""
     for c in crews:
+        _route(c, adj, av, operation, contig_w)
         pos = c["home"]
         seen = []
         for a in c["assigned"]:
